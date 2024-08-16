@@ -506,8 +506,6 @@ data_set <- data_set %>%
   ) %>% janitor::clean_names()
 ```
 
-## Mapeando os pontos amostrais
-
 ``` r
 dias_leitura <- data_set$data %>% unique()
 area <- data_set$cultura %>% unique()
@@ -516,5 +514,57 @@ data_set <- data_set %>%
   distinct(x, y, .keep_all = TRUE) %>% 
   filter(
     #data == "2018-05-25",
-    cultura == "pasto")
+    cultura == "pasto",
+    data <= "2018-07-15") %>% 
+  select(-dist)
+data_set
+#> # A tibble: 555 × 36
+#> # Groups:   data [11]
+#>       id data       cultura   ano   mes        x       y  fco2    ts    us    mo
+#>    <int> <date>     <chr>   <dbl> <dbl>    <dbl>   <dbl> <dbl> <dbl> <dbl> <dbl>
+#>  1     1 2018-05-25 pasto    2018     5 7748006. 456931.  1.14  25.1 10.2     17
+#>  2     2 2018-05-25 pasto    2018     5 7748003. 456925.  1.3   24.7  9.48    15
+#>  3     3 2018-05-25 pasto    2018     5 7748000. 456921.  1.59  21.1 15.0     15
+#>  4     4 2018-05-25 pasto    2018     5 7747997. 456915.  1.68  28.7  6.12    14
+#>  5     5 2018-05-25 pasto    2018     5 7747994. 456910.  1.45  24.8 10.7     17
+#>  6     6 2018-05-25 pasto    2018     5 7747992. 456904.  3.31  25.6  9.76    14
+#>  7     7 2018-05-25 pasto    2018     5 7748009. 456907.  1.76  26.9  8.24    15
+#>  8     8 2018-05-25 pasto    2018     5 7748013. 456886.  2.74  21.8 14.2     16
+#>  9     9 2018-05-25 pasto    2018     5 7748019. 456863.  1.53  21.9 14.1     17
+#> 10    10 2018-05-25 pasto    2018     5 7748024. 456841.  1.17  22.2 13.8     14
+#> # ℹ 545 more rows
+#> # ℹ 25 more variables: macro <dbl>, vtp <dbl>, arg <dbl>, ano_mes <chr>,
+#> #   tmed <dbl>, tmax <dbl>, tmin <dbl>, umed <dbl>, umax <dbl>, umin <dbl>,
+#> #   pk_pa <dbl>, rad <dbl>, eto <dbl>, velmax <dbl>, velmin <dbl>,
+#> #   dir_vel <dbl>, chuva <dbl>, inso <dbl>, data_y <date>, mes_2 <dbl>,
+#> #   dia <dbl>, longitude <dbl>, latitude <dbl>, xco2 <dbl>, sif <dbl>
 ```
+
+``` r
+data_set_mean <- data_set %>% 
+  summarise(
+    fco2_m = mean(fco2, na.rm = TRUE),
+    ts_m = mean(ts, na.rm = TRUE),
+    us_m = mean(us, na.rm = TRUE),
+    # fazer de tmed:inso
+    xco2_m = mean(xco2, na.rm = TRUE),
+    sif_m = mean(sif, na.rm = TRUE)
+  )
+```
+
+# Matriz de Correlação temporal
+
+``` r
+mcor <- cor(data_set_mean %>% select(-data))
+corrplot::corrplot(mcor)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+
+``` r
+data_set_mean %>% 
+  ggplot(aes(x=data, y=xco2_m)) + 
+  geom_line()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->

@@ -303,7 +303,6 @@ data_set <- data_set %>%
     data = data.x
   ) %>% janitor::clean_names()
 ```
-## Mapeando os pontos amostrais
 
 ```{r}
 dias_leitura <- data_set$data %>% unique()
@@ -313,6 +312,33 @@ data_set <- data_set %>%
   distinct(x, y, .keep_all = TRUE) %>% 
   filter(
     #data == "2018-05-25",
-    cultura == "pasto")
+    cultura == "pasto",
+    data <= "2018-07-15") %>% 
+  select(-dist)
+data_set
+```
+
+```{r}
+data_set_mean <- data_set %>% 
+  summarise(
+    fco2_m = mean(fco2, na.rm = TRUE),
+    ts_m = mean(ts, na.rm = TRUE),
+    us_m = mean(us, na.rm = TRUE),
+    # fazer de tmed:inso
+    xco2_m = mean(xco2, na.rm = TRUE),
+    sif_m = mean(sif, na.rm = TRUE)
+  )
+```
+# Matriz de Correlação temporal
+
+```{r}
+mcor <- cor(data_set_mean %>% select(-data))
+corrplot::corrplot(mcor)
+```
+
+```{r}
+data_set_mean %>% 
+  ggplot(aes(x=data, y=xco2_m)) + 
+  geom_line()
 ```
 
