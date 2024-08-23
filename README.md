@@ -121,9 +121,10 @@ oco2  %>%
   geom_line(color="red")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- --> Agora devemos
-retirar a tendência ao longo do tempo, para isso, dentro do período
-específico, faremos a retirada por meio de um ajuste linear:
+![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+Agora devemos retirar a tendência ao longo do tempo, para isso, dentro
+do período específico, faremos a retirada por meio de um ajuste linear:
 
 ``` r
 oco2  %>%  
@@ -546,25 +547,69 @@ data_set_mean <- data_set %>%
     fco2_m = mean(fco2, na.rm = TRUE),
     ts_m = mean(ts, na.rm = TRUE),
     us_m = mean(us, na.rm = TRUE),
-    # fazer de tmed:inso
+    tmed_m = mean(tmed, na.rm = TRUE),
+    tmax_m = mean(tmax, na.rm = TRUE),
+    tmin_m = mean(tmin, na.rm = TRUE),
+    umed_m = mean(umed, na.rm = TRUE),
+    umax_m = mean(umax, na.rm = TRUE),
+    pk_pa_m = mean(pk_pa, na.rm = TRUE),
+    rad_m = mean(rad, na.rm = TRUE),
+    eto_m = mean(eto, na.rm = TRUE),
+    velmax_m = mean(velmax, na.rm = TRUE),
+    velmin_m = mean(velmin, na.rm = TRUE),
+    dir_vel_m = mean(dir_vel, na.rm = TRUE),
+    chuva_m = mean(chuva, na.rm = TRUE),
+    inso_m = mean(inso, na.rm = TRUE),
     xco2_m = mean(xco2, na.rm = TRUE),
     sif_m = mean(sif, na.rm = TRUE)
   )
 ```
 
-# Matriz de Correlação temporal
+# Matriz de Correlação Temporal
 
 ``` r
-mcor <- cor(data_set_mean %>% select(-data))
-corrplot::corrplot(mcor)
+names(data_set_mean) <- names(data_set_mean) %>% str_remove(.,"_m")
+mcor <- cor(data_set_mean %>% 
+              select(-data,-chuva, dir_vel) %>% 
+              relocate(fco2:us,xco2,sif)
+            )
+head(round(mcor,2))
+#>       fco2    ts    us  xco2   sif  tmed  tmax  tmin  umed  umax pk_pa   rad
+#> fco2  1.00  0.10 -0.45  0.44 -0.31 -0.11 -0.06 -0.02  0.33 -0.11 -0.04  0.33
+#> ts    0.10  1.00  0.77 -0.20  0.29  0.13  0.09  0.30 -0.13 -0.08 -0.23  0.20
+#> us   -0.45  0.77  1.00 -0.48  0.47 -0.06 -0.10  0.07 -0.05  0.14 -0.04 -0.18
+#> xco2  0.44 -0.20 -0.48  1.00 -0.98  0.15  0.20  0.11  0.02 -0.08  0.02  0.40
+#> sif  -0.31  0.29  0.47 -0.98  1.00 -0.07 -0.14 -0.02 -0.08 -0.05 -0.05 -0.31
+#> tmed -0.11  0.13 -0.06  0.15 -0.07  1.00  0.96  0.68 -0.91 -0.55 -0.55  0.76
+#>       eto velmax velmin dir_vel  inso
+#> fco2 0.10   0.12  -0.14    0.37  0.28
+#> ts   0.33  -0.31   0.07   -0.09  0.14
+#> us   0.00  -0.09   0.18   -0.09 -0.22
+#> xco2 0.07  -0.23  -0.53    0.12  0.53
+#> sif  0.05   0.25   0.54   -0.18 -0.45
+#> tmed 0.85  -0.40  -0.48   -0.88  0.75
+col <- colorRampPalette(c("green", "blue"))(20)
+corrplot::corrplot(mcor, method = "ellipse", type = "upper", col=col,tl.col="black",tl.srt=90,insig = "blank",na.label = " ", na.label.col = "white")
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
 
 ``` r
 data_set_mean %>% 
-  ggplot(aes(x=data, y=xco2_m)) + 
+  ggplot(aes(x=data, y=xco2)) + 
   geom_line()
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+
+# Correlação Espacial
+
+``` r
+data_set %>% 
+  filter(data == "2018-05-25") %>% 
+  ggplot(aes(x=x,y=y)) + 
+  geom_point() +
+  theme_bw()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
