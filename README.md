@@ -37,6 +37,7 @@ library(ISLR)
 library(modeldata)
 library(vip)
 library(ggpubr)
+library(patchwork)
 source("R/my_fun.R")
 
 # Definindo o plano de multisession
@@ -612,4 +613,160 @@ data_set %>%
   theme_bw()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- --> \##
+Correlação por ponto de emissão
+
+``` r
+data_set_nest <- data_set %>%
+  ungroup() %>% 
+  select(id,x,y,fco2,xco2,sif) %>% 
+  #rename(dia = data) %>% 
+  group_by(id) %>% 
+  nest(fco2:sif) 
+```
+
+``` r
+data_set_nest$data[1]
+#> [[1]]
+#> # A tibble: 8 × 3
+#>    fco2  xco2    sif
+#>   <dbl> <dbl>  <dbl>
+#> 1  1.14  386.  0.125
+#> 2  0.64  386.  0.125
+#> 3  0.77  389. -0.262
+#> 4  0.91  389. -0.262
+#> 5  0.69  389. -0.262
+#> 6  0.67  389. -0.262
+#> 7  0.78  382.  0.313
+#> 8  0.7   382.  0.313
+
+get_corr_xco2 <- function(df){
+  fco2  = df %>% pull(fco2)
+  xco2 = df %>% pull(xco2)
+  cor(fco2,xco2)
+}
+get_corr_xco2(data_set_nest$data[[1]])
+#> [1] 0.006381941
+
+get_corr_sif <- function(df){
+  fco2  = df %>% pull(fco2)
+  sif = df %>% pull(sif)
+  cor(fco2,sif)
+}
+get_corr_sif(data_set_nest$data[[1]])
+#> [1] 0.07979963
+
+data_set_cor <- data_set_nest %>% 
+  mutate(
+    cor_xco2 = map(data, get_corr_xco2),
+    cor_sif = map(data, get_corr_sif),
+  ) %>% 
+  select(id,x,y,cor_xco2,cor_sif) %>% 
+  unnest() %>% 
+  drop_na()
+```
+
+``` r
+sp::coordinates(data_set_cor)=~x+y  
+form <- cor_xco2 ~ 1 
+vari_cor <- gstat::variogram(form, data=data_set_cor,
+                             cutoff=60,width=5,cressie=FALSE)
+vari_cor  %>%  
+  ggplot(ggplot2::aes(x=dist, y=gamma)) +
+  geom_point()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+
+``` r
+m_cor <- gstat::fit.variogram(vari_cor,
+                              gstat::vgm(0.08,"Sph",20,0.02))
+plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+
+``` r
+x <- data_set_nest %>% drop_na() %>% pull(x)
+y <- data_set_nest %>% drop_na() %>% pull(y)
+dis <- 1.8 #Distância entre pontos
+grid <- expand.grid(X=seq(min(x),max(x),dis), Y=seq(min(y),max(y),dis))
+sp::gridded(grid) = ~ X + Y
+```
+
+``` r
+ko_cor<-gstat::krige(formula=form, data_set_cor, grid, model=m_cor, 
+    block=c(0,0),
+    nsim=0,
+    na.action=na.pass,
+    debug.level=-1,  
+    )
+#> [using ordinary kriging]
+#> 100% done
+```
+
+``` r
+map_xco2 <- tibble::as.tibble(ko_cor)  %>%  
+  ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
+  ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
+  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()
+map_xco2
+```
+
+![](README_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
+
+#### 
+
+``` r
+form <- cor_sif ~ 1 
+vari_cor <- gstat::variogram(form, data=data_set_cor,
+                             cutoff=60,width=5,cressie=FALSE)
+vari_cor  %>%  
+  ggplot(ggplot2::aes(x=dist, y=gamma)) +
+  geom_point()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
+
+``` r
+m_cor <- gstat::fit.variogram(vari_cor,
+                              gstat::vgm(0.08,"Sph",20,0.02))
+plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
+
+``` r
+x <- data_set_nest %>% drop_na() %>% pull(x)
+y <- data_set_nest %>% drop_na() %>% pull(y)
+dis <- 1.8 #Distância entre pontos
+grid <- expand.grid(X=seq(min(x),max(x),dis), Y=seq(min(y),max(y),dis))
+sp::gridded(grid) = ~ X + Y
+```
+
+``` r
+ko_cor<-gstat::krige(formula=form, data_set_cor, grid, model=m_cor, 
+    block=c(0,0),
+    nsim=0,
+    na.action=na.pass,
+    debug.level=-1,  
+    )
+#> [using ordinary kriging]
+#> 100% done
+```
+
+``` r
+map_sif <- tibble::as.tibble(ko_cor)  %>%  
+  ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
+  ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
+  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()
+map_sif
+```
+
+![](README_files/figure-gfm/unnamed-chunk-42-1.png)<!-- -->
+
+``` r
+map_sif + map_xco2
+```
+
+![](README_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
