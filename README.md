@@ -72,7 +72,7 @@ glimpse(dados_estacao)
 ### Conhecendo a base de dados de CO<sub>2</sub> atmosférico
 
 ``` r
-help(oco2_br)
+# help(oco2_br)
 glimpse(fco2r::oco2_br)
 #> Rows: 37,387
 #> Columns: 18
@@ -512,34 +512,21 @@ data_set <- data_set %>%
 dias_leitura <- data_set$data %>% unique()
 area <- data_set$cultura %>% unique()
 data_set <- data_set %>% 
-  group_by(data) %>% 
+  group_by(data, cultura) %>% 
   distinct(x, y, .keep_all = TRUE) %>% 
   filter(
-    #data == "2018-05-25",
-    cultura == "pasto",
-    data <= "2018-07-15") %>% 
+    # data == "2018-05-25",
+    # cultura == "pasto",
+    # data <= "2018-07-15"
+    ) %>% 
   select(-dist)
-data_set
-#> # A tibble: 555 × 36
-#> # Groups:   data [11]
-#>       id data       cultura   ano   mes        x       y  fco2    ts    us    mo
-#>    <int> <date>     <chr>   <dbl> <dbl>    <dbl>   <dbl> <dbl> <dbl> <dbl> <dbl>
-#>  1     1 2018-05-25 pasto    2018     5 7748006. 456931.  1.14  25.1 10.2     17
-#>  2     2 2018-05-25 pasto    2018     5 7748003. 456925.  1.3   24.7  9.48    15
-#>  3     3 2018-05-25 pasto    2018     5 7748000. 456921.  1.59  21.1 15.0     15
-#>  4     4 2018-05-25 pasto    2018     5 7747997. 456915.  1.68  28.7  6.12    14
-#>  5     5 2018-05-25 pasto    2018     5 7747994. 456910.  1.45  24.8 10.7     17
-#>  6     6 2018-05-25 pasto    2018     5 7747992. 456904.  3.31  25.6  9.76    14
-#>  7     7 2018-05-25 pasto    2018     5 7748009. 456907.  1.76  26.9  8.24    15
-#>  8     8 2018-05-25 pasto    2018     5 7748013. 456886.  2.74  21.8 14.2     16
-#>  9     9 2018-05-25 pasto    2018     5 7748019. 456863.  1.53  21.9 14.1     17
-#> 10    10 2018-05-25 pasto    2018     5 7748024. 456841.  1.17  22.2 13.8     14
-#> # ℹ 545 more rows
-#> # ℹ 25 more variables: macro <dbl>, vtp <dbl>, arg <dbl>, ano_mes <chr>,
-#> #   tmed <dbl>, tmax <dbl>, tmin <dbl>, umed <dbl>, umax <dbl>, umin <dbl>,
-#> #   pk_pa <dbl>, rad <dbl>, eto <dbl>, velmax <dbl>, velmin <dbl>,
-#> #   dir_vel <dbl>, chuva <dbl>, inso <dbl>, data_y <date>, mes_2 <dbl>,
-#> #   dia <dbl>, longitude <dbl>, latitude <dbl>, xco2 <dbl>, sif <dbl>
+data_set$data %>% unique()
+#>  [1] "2018-05-25" "2018-05-31" "2018-06-05" "2018-06-14" "2018-06-20"
+#>  [6] "2018-06-26" "2018-07-04" "2018-07-09" "2018-05-22" "2018-06-01"
+#> [11] "2018-06-04" "2018-06-16" "2018-06-18" "2018-06-25" "2018-07-03"
+#> [16] "2018-07-10" "2018-06-06" "2018-06-15" "2018-06-21" "2018-07-31"
+#> [21] "2018-08-07" "2018-08-21" "2018-08-28" "2018-09-04" "2018-09-11"
+#> [26] "2018-09-22" "2018-10-09" "2018-10-16"
 ```
 
 ``` r
@@ -571,24 +558,26 @@ data_set_mean <- data_set %>%
 ``` r
 names(data_set_mean) <- names(data_set_mean) %>% str_remove(.,"_m")
 mcor <- cor(data_set_mean %>% 
-              select(-data,-chuva, dir_vel) %>% 
+              ungroup() %>% 
+              filter(cultura == "pasto") %>% 
+              select(-data, -cultura, -dir_vel) %>% 
               relocate(fco2:us,xco2,sif)
             )
 head(round(mcor,2))
 #>       fco2    ts    us  xco2   sif  tmed  tmax  tmin  umed  umax pk_pa   rad
-#> fco2  1.00  0.10 -0.45  0.44 -0.31 -0.11 -0.06 -0.02  0.33 -0.11 -0.04  0.33
-#> ts    0.10  1.00  0.77 -0.20  0.29  0.13  0.09  0.30 -0.13 -0.08 -0.23  0.20
-#> us   -0.45  0.77  1.00 -0.48  0.47 -0.06 -0.10  0.07 -0.05  0.14 -0.04 -0.18
-#> xco2  0.44 -0.20 -0.48  1.00 -0.98  0.15  0.20  0.11  0.02 -0.08  0.02  0.40
-#> sif  -0.31  0.29  0.47 -0.98  1.00 -0.07 -0.14 -0.02 -0.08 -0.05 -0.05 -0.31
-#> tmed -0.11  0.13 -0.06  0.15 -0.07  1.00  0.96  0.68 -0.91 -0.55 -0.55  0.76
-#>       eto velmax velmin dir_vel  inso
-#> fco2 0.10   0.12  -0.14    0.37  0.28
-#> ts   0.33  -0.31   0.07   -0.09  0.14
-#> us   0.00  -0.09   0.18   -0.09 -0.22
-#> xco2 0.07  -0.23  -0.53    0.12  0.53
-#> sif  0.05   0.25   0.54   -0.18 -0.45
-#> tmed 0.85  -0.40  -0.48   -0.88  0.75
+#> fco2  1.00  0.58 -0.18  0.24  0.54  0.57  0.48  0.74  0.25  0.24 -0.57  0.48
+#> ts    0.58  1.00  0.01 -0.03  0.64  0.51  0.46  0.64  0.02  0.05 -0.64  0.47
+#> us   -0.18  0.01  1.00 -0.52 -0.07 -0.20 -0.25 -0.09  0.16  0.16  0.37 -0.31
+#> xco2  0.24 -0.03 -0.52  1.00 -0.28  0.18  0.25  0.11 -0.09 -0.08 -0.15  0.37
+#> sif   0.54  0.64 -0.07 -0.28  1.00  0.43  0.40  0.58  0.22  0.22 -0.58  0.46
+#> tmed  0.57  0.51 -0.20  0.18  0.43  1.00  0.96  0.87 -0.54 -0.40 -0.75  0.79
+#>        eto velmax velmin chuva  inso
+#> fco2  0.33  -0.23  -0.36  0.57  0.17
+#> ts    0.44  -0.25  -0.16  0.52  0.10
+#> us   -0.28  -0.11   0.12 -0.11 -0.11
+#> xco2  0.25   0.06  -0.25  0.05  0.42
+#> sif   0.53   0.17   0.20  0.67 -0.19
+#> tmed  0.77  -0.11  -0.27  0.31  0.64
 col <- colorRampPalette(c("green", "blue"))(20)
 corrplot::corrplot(mcor, method = "ellipse", type = "upper", col=col,tl.col="black",tl.srt=90,insig = "blank",na.label = " ", na.label.col = "white")
 ```
@@ -596,32 +585,65 @@ corrplot::corrplot(mcor, method = "ellipse", type = "upper", col=col,tl.col="bla
 ![](README_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
 
 ``` r
-data_set_mean %>% 
-  ggplot(aes(x=data, y=xco2)) + 
-  geom_line()
+names(data_set_mean) <- names(data_set_mean) %>% str_remove(.,"_m")
+mcor <- cor(data_set_mean %>% 
+              ungroup() %>% 
+              filter(cultura == "silvipastoril") %>% 
+              select(-data, -cultura, -dir_vel) %>% 
+              relocate(fco2:us,xco2,sif)
+            )
+head(round(mcor,2))
+#>      fco2    ts    us  xco2   sif  tmed tmax  tmin  umed  umax pk_pa  rad  eto
+#> fco2 1.00  0.59  0.23  0.25  0.60  0.55 0.51  0.64  0.19  0.24 -0.55 0.60 0.55
+#> ts   0.59  1.00 -0.21  0.13  0.48  0.66 0.56  0.79 -0.01  0.02 -0.72 0.32 0.51
+#> us   0.23 -0.21  1.00 -0.31  0.31 -0.01 0.05 -0.03  0.10  0.11  0.15 0.27 0.13
+#> xco2 0.25  0.13 -0.31  1.00 -0.37  0.27 0.29  0.24  0.00 -0.06 -0.14 0.16 0.17
+#> sif  0.60  0.48  0.31 -0.37  1.00  0.34 0.32  0.43  0.11  0.13 -0.50 0.52 0.56
+#> tmed 0.55  0.66 -0.01  0.27  0.34  1.00 0.96  0.89 -0.45 -0.27 -0.80 0.58 0.69
+#>      velmax velmin chuva  inso
+#> fco2  -0.03  -0.10  0.60  0.20
+#> ts    -0.02  -0.04  0.38 -0.10
+#> us     0.03   0.11  0.25  0.23
+#> xco2  -0.05  -0.26  0.05  0.21
+#> sif    0.27   0.27  0.64 -0.06
+#> tmed  -0.09  -0.25  0.31  0.39
+col <- colorRampPalette(c("green", "blue"))(20)
+corrplot::corrplot(mcor, method = "ellipse", type = "upper", col=col,tl.col="black",tl.srt=90,insig = "blank",na.label = " ", na.label.col = "white")
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+
+``` r
+data_set_mean %>% 
+  ggplot(aes(x=data, y=fco2)) + 
+  geom_line() +
+  facet_wrap(~cultura) + 
+  theme_bw()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
 
 # Correlação Espacial
 
 ``` r
 data_set %>% 
-  filter(data == "2018-05-25") %>% 
+  # filter(data == "2018-05-22") %>% 
   ggplot(aes(x=x,y=y)) + 
   geom_point() +
+  theme_bw() +
+  facet_wrap(~cultura, scale="free") + 
   theme_bw()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- --> \##
+![](README_files/figure-gfm/unnamed-chunk-31-1.png)<!-- --> \##
 Correlação por ponto de emissão
 
 ``` r
 data_set_nest <- data_set %>%
   ungroup() %>% 
-  select(id,x,y,fco2,xco2,sif) %>% 
+  select(id,cultura,x,y,fco2,xco2,sif) %>% 
   #rename(dia = data) %>% 
-  group_by(id) %>% 
+  group_by(cultura, id) %>% 
   nest(fco2:sif) 
 ```
 
@@ -666,36 +688,39 @@ data_set_cor <- data_set_nest %>%
   drop_na()
 ```
 
+## Análise geoestatística - PASTO
+
 ``` r
-sp::coordinates(data_set_cor)=~x+y  
+data_set_cor_pasto <- data_set_cor %>% filter(cultura == "pasto") %>% select(-cultura) %>% ungroup() %>% filter(row_number() <= n()-1)
+sp::coordinates(data_set_cor_pasto)=~x+y  
 form <- cor_xco2 ~ 1 
-vari_cor <- gstat::variogram(form, data=data_set_cor,
+vari_cor <- gstat::variogram(form, data=data_set_cor_pasto,
                              cutoff=60,width=5,cressie=FALSE)
 vari_cor  %>%  
   ggplot(ggplot2::aes(x=dist, y=gamma)) +
   geom_point()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
-
-``` r
-m_cor <- gstat::fit.variogram(vari_cor,
-                              gstat::vgm(0.08,"Sph",20,0.02))
-plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
-```
-
 ![](README_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
 
 ``` r
-x <- data_set_nest %>% drop_na() %>% pull(x)
-y <- data_set_nest %>% drop_na() %>% pull(y)
-dis <- 1.8 #Distância entre pontos
+m_cor <- gstat::fit.variogram(vari_cor,
+                              gstat::vgm(0.09,"Sph",20,0.02))
+plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+
+``` r
+x <- data_set_cor %>% filter(cultura == "pasto") %>% drop_na() %>% pull(x)
+y <- data_set_cor %>% filter(cultura == "pasto") %>% drop_na() %>% pull(y)
+dis <- 1.5 #Distância entre pontos
 grid <- expand.grid(X=seq(min(x),max(x),dis), Y=seq(min(y),max(y),dis))
 sp::gridded(grid) = ~ X + Y
 ```
 
 ``` r
-ko_cor<-gstat::krige(formula=form, data_set_cor, grid, model=m_cor, 
+ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor, 
     block=c(0,0),
     nsim=0,
     na.action=na.pass,
@@ -709,57 +734,51 @@ ko_cor<-gstat::krige(formula=form, data_set_cor, grid, model=m_cor,
 map_xco2 <- tibble::as.tibble(ko_cor)  %>%  
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
-  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()
+  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal() +
+  labs(fill="XCO2_cor")
 map_xco2
-```
-
-![](README_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
-
-#### 
-
-``` r
-form <- cor_sif ~ 1 
-vari_cor <- gstat::variogram(form, data=data_set_cor,
-                             cutoff=60,width=5,cressie=FALSE)
-vari_cor  %>%  
-  ggplot(ggplot2::aes(x=dist, y=gamma)) +
-  geom_point()
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
 
+#### 
+
 ``` r
-m_cor <- gstat::fit.variogram(vari_cor,
-                              gstat::vgm(0.08,"Sph",20,0.02))
-plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
+form <- cor_sif ~ 1
+vari_cor <- gstat::variogram(form, data=data_set_cor_pasto,
+                             cutoff=60,width=5.2,cressie=FALSE)
+vari_cor  %>%
+  ggplot(ggplot2::aes(x=dist, y=gamma)) +
+  geom_point()
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
 
 ``` r
-x <- data_set_nest %>% drop_na() %>% pull(x)
-y <- data_set_nest %>% drop_na() %>% pull(y)
-dis <- 1.8 #Distância entre pontos
-grid <- expand.grid(X=seq(min(x),max(x),dis), Y=seq(min(y),max(y),dis))
-sp::gridded(grid) = ~ X + Y
+m_cor <- gstat::fit.variogram(vari_cor,
+                              gstat::vgm(0.07,"Sph",6,0.02))
+plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
+![](README_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
+
 ``` r
-ko_cor<-gstat::krige(formula=form, data_set_cor, grid, model=m_cor, 
+ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
     block=c(0,0),
     nsim=0,
     na.action=na.pass,
-    debug.level=-1,  
+    debug.level=-1,
     )
 #> [using ordinary kriging]
 #> 100% done
 ```
 
 ``` r
-map_sif <- tibble::as.tibble(ko_cor)  %>%  
-  ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
+map_sif <- tibble::as.tibble(ko_cor)  %>%
+  ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) +
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
-  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()
+  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()+
+  labs(fill="SIF_cor")
 map_sif
 ```
 
@@ -770,3 +789,105 @@ map_sif + map_xco2
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
+
+## Análise geoestatística - Silvipastoril
+
+``` r
+data_set_cor_silvi <- data_set_cor %>% filter(cultura == "silvipastoril") %>% select(-cultura) %>% ungroup() %>% filter(row_number() <= n()-1)
+sp::coordinates(data_set_cor_silvi)=~x+y  
+form <- cor_xco2 ~ 1 
+vari_cor <- gstat::variogram(form, data=data_set_cor_silvi,
+                             cutoff=60,width=5,cressie=FALSE)
+vari_cor  %>%  
+  ggplot(ggplot2::aes(x=dist, y=gamma)) +
+  geom_point()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
+
+``` r
+m_cor <- gstat::fit.variogram(vari_cor,
+                              gstat::vgm(0.09,"Sph",20,0.02))
+plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-45-1.png)<!-- -->
+
+``` r
+x <- data_set_cor %>% filter(cultura == "silvipastoril") %>% drop_na() %>% pull(x)
+y <- data_set_cor %>% filter(cultura == "silvipastoril") %>% drop_na() %>% pull(y)
+dis <- 1.5 #Distância entre pontos
+grid <- expand.grid(X=seq(min(x),max(x),dis), Y=seq(min(y),max(y),dis))
+sp::gridded(grid) = ~ X + Y
+```
+
+``` r
+ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor, 
+    block=c(0,0),
+    nsim=0,
+    na.action=na.pass,
+    debug.level=-1,  
+    )
+#> [using ordinary kriging]
+#> 100% done
+```
+
+``` r
+map_xco2 <- tibble::as.tibble(ko_cor)  %>%  
+  ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
+  ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
+  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal() +
+  labs(fill="XCO2_cor")
+map_xco2
+```
+
+![](README_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
+
+#### 
+
+``` r
+form <- cor_sif ~ 1
+vari_cor <- gstat::variogram(form, data=data_set_cor_silvi,
+                             cutoff=60,width=5.2,cressie=FALSE)
+vari_cor  %>%
+  ggplot(ggplot2::aes(x=dist, y=gamma)) +
+  geom_point()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-49-1.png)<!-- -->
+
+``` r
+m_cor <- gstat::fit.variogram(vari_cor,
+                              gstat::vgm(0.07,"Sph",6,0.02))
+plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-50-1.png)<!-- -->
+
+``` r
+ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
+    block=c(0,0),
+    nsim=0,
+    na.action=na.pass,
+    debug.level=-1,
+    )
+#> [using ordinary kriging]
+#> 100% done
+```
+
+``` r
+map_sif <- tibble::as.tibble(ko_cor)  %>%
+  ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) +
+  ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
+  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()+
+  labs(fill="SIF_cor")
+map_sif
+```
+
+![](README_files/figure-gfm/unnamed-chunk-52-1.png)<!-- -->
+
+``` r
+map_sif + map_xco2
+```
+
+![](README_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
