@@ -383,6 +383,62 @@ data_set %>%
   facet_wrap(~cultura, scale="free") + 
   theme_bw()
 ```
+
+```{r}
+data_set %>% ungroup() %>%  
+  filter(data == "2018-05-22") %>% 
+  ggplot(aes(x=x,y=y, label=id)) + 
+  geom_text(aes(label = id),
+              size = 3.5)
+silv_point_pol <- c(86,80,1,7)
+silv_pol <- data_set %>% ungroup() %>%  
+  filter(data == "2018-05-22",
+         id %in% silv_point_pol) %>% 
+  select(x, y) %>% as.matrix()
+# silv_pol <- silv_pol %>% rbind(silv_pol[1,])
+silv_pol <- silv_pol[c(4,3,1,2,4),]
+
+library(sp)
+p = Polygon(silv_pol)
+ps = Polygons(list(p),1)
+sps = SpatialPolygons(list(ps))
+plot(sps)
+```
+
+
+```{r}
+data_set %>% ungroup() %>%  
+  filter(data == "2018-05-25") %>% 
+  ggplot(aes(x=x,y=y, label=id)) + 
+  geom_text(aes(label = id),
+              size = 3.5)
+pasto_point_pol <- c(71,69,56,1,10,64)
+pasto_pol <- data_set %>% ungroup() %>%  
+  filter(data == "2018-05-25",
+         id %in% pasto_point_pol) %>% 
+  select(x, y) %>% as.matrix()
+# pasto_pol <- pasto_pol %>% rbind(pasto_pol[1,])
+pasto_pol <- pasto_pol[c(6,5,3,1,2,4,6),]
+
+library(sp)
+p = Polygon(pasto_pol)
+ps = Polygons(list(p),1)
+sps = SpatialPolygons(list(ps))
+plot(sps)
+```
+
+
+
+```{r}
+def_pol <- function(x, y, pol){
+  as.logical(sp::point.in.polygon(point.x = x,
+                                  point.y = y,
+                                  pol.x = pol[,1],
+                                  pol.y = pol[,2]))
+}
+```
+
+
 ## Correlação por ponto de emissão
 
 ```{r}
@@ -459,7 +515,9 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
 ```
 
 ```{r}
-map_xco2 <- tibble::as.tibble(ko_cor)  %>%  
+map_xco2 <- tibble::as.tibble(ko_cor)  %>% 
+  dplyr::mutate(flag = def_pol(X,Y,pasto_pol)) %>%  
+  dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
   ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal() +
@@ -496,6 +554,8 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
 
 ```{r}
 map_sif <- tibble::as.tibble(ko_cor)  %>%
+    dplyr::mutate(flag = def_pol(X,Y,pasto_pol)) %>%  
+  dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) +
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
   ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()+
@@ -545,6 +605,8 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
 
 ```{r}
 map_xco2 <- tibble::as.tibble(ko_cor)  %>%  
+    dplyr::mutate(flag = def_pol(X,Y,silv_pol)) %>%  
+  dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
   ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal() +
@@ -581,6 +643,8 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
 
 ```{r}
 map_sif <- tibble::as.tibble(ko_cor)  %>%
+    dplyr::mutate(flag = def_pol(X,Y,silv_pol)) %>%  
+  dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) +
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
   ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()+

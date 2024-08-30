@@ -635,8 +635,74 @@ data_set %>%
   theme_bw()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-31-1.png)<!-- --> \##
-Correlação por ponto de emissão
+![](README_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
+
+``` r
+data_set %>% ungroup() %>%  
+  filter(data == "2018-05-22") %>% 
+  ggplot(aes(x=x,y=y, label=id)) + 
+  geom_text(aes(label = id),
+              size = 3.5)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
+
+``` r
+silv_point_pol <- c(86,80,1,7)
+silv_pol <- data_set %>% ungroup() %>%  
+  filter(data == "2018-05-22",
+         id %in% silv_point_pol) %>% 
+  select(x, y) %>% as.matrix()
+# silv_pol <- silv_pol %>% rbind(silv_pol[1,])
+silv_pol <- silv_pol[c(4,3,1,2,4),]
+
+library(sp)
+p = Polygon(silv_pol)
+ps = Polygons(list(p),1)
+sps = SpatialPolygons(list(ps))
+plot(sps)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-32-2.png)<!-- -->
+
+``` r
+data_set %>% ungroup() %>%  
+  filter(data == "2018-05-25") %>% 
+  ggplot(aes(x=x,y=y, label=id)) + 
+  geom_text(aes(label = id),
+              size = 3.5)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+
+``` r
+pasto_point_pol <- c(71,69,56,1,10,64)
+pasto_pol <- data_set %>% ungroup() %>%  
+  filter(data == "2018-05-25",
+         id %in% pasto_point_pol) %>% 
+  select(x, y) %>% as.matrix()
+# pasto_pol <- pasto_pol %>% rbind(pasto_pol[1,])
+pasto_pol <- pasto_pol[c(6,5,3,1,2,4,6),]
+
+library(sp)
+p = Polygon(pasto_pol)
+ps = Polygons(list(p),1)
+sps = SpatialPolygons(list(ps))
+plot(sps)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-33-2.png)<!-- -->
+
+``` r
+def_pol <- function(x, y, pol){
+  as.logical(sp::point.in.polygon(point.x = x,
+                                  point.y = y,
+                                  pol.x = pol[,1],
+                                  pol.y = pol[,2]))
+}
+```
+
+## Correlação por ponto de emissão
 
 ``` r
 data_set_nest <- data_set %>%
@@ -701,7 +767,7 @@ vari_cor  %>%
   geom_point()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
 
 ``` r
 m_cor <- gstat::fit.variogram(vari_cor,
@@ -709,7 +775,7 @@ m_cor <- gstat::fit.variogram(vari_cor,
 plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
 
 ``` r
 x <- data_set_cor %>% filter(cultura == "pasto") %>% drop_na() %>% pull(x)
@@ -731,7 +797,9 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
 ```
 
 ``` r
-map_xco2 <- tibble::as.tibble(ko_cor)  %>%  
+map_xco2 <- tibble::as.tibble(ko_cor)  %>% 
+  dplyr::mutate(flag = def_pol(X,Y,pasto_pol)) %>%  
+  dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
   ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal() +
@@ -739,7 +807,7 @@ map_xco2 <- tibble::as.tibble(ko_cor)  %>%
 map_xco2
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
 
 #### 
 
@@ -752,7 +820,7 @@ vari_cor  %>%
   geom_point()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-42-1.png)<!-- -->
 
 ``` r
 m_cor <- gstat::fit.variogram(vari_cor,
@@ -760,7 +828,7 @@ m_cor <- gstat::fit.variogram(vari_cor,
 plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
 
 ``` r
 ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
@@ -775,6 +843,8 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
 
 ``` r
 map_sif <- tibble::as.tibble(ko_cor)  %>%
+    dplyr::mutate(flag = def_pol(X,Y,pasto_pol)) %>%  
+  dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) +
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
   ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()+
@@ -782,13 +852,13 @@ map_sif <- tibble::as.tibble(ko_cor)  %>%
 map_sif
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-42-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-45-1.png)<!-- -->
 
 ``` r
 map_sif + map_xco2
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-46-1.png)<!-- -->
 
 ## Análise geoestatística - Silvipastoril
 
@@ -803,7 +873,7 @@ vari_cor  %>%
   geom_point()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
 
 ``` r
 m_cor <- gstat::fit.variogram(vari_cor,
@@ -811,7 +881,7 @@ m_cor <- gstat::fit.variogram(vari_cor,
 plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-45-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
 
 ``` r
 x <- data_set_cor %>% filter(cultura == "silvipastoril") %>% drop_na() %>% pull(x)
@@ -834,6 +904,8 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
 
 ``` r
 map_xco2 <- tibble::as.tibble(ko_cor)  %>%  
+    dplyr::mutate(flag = def_pol(X,Y,silv_pol)) %>%  
+  dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
   ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal() +
@@ -841,7 +913,7 @@ map_xco2 <- tibble::as.tibble(ko_cor)  %>%
 map_xco2
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-51-1.png)<!-- -->
 
 #### 
 
@@ -854,7 +926,7 @@ vari_cor  %>%
   geom_point()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-49-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-52-1.png)<!-- -->
 
 ``` r
 m_cor <- gstat::fit.variogram(vari_cor,
@@ -862,7 +934,7 @@ m_cor <- gstat::fit.variogram(vari_cor,
 plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-50-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
 
 ``` r
 ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
@@ -877,6 +949,8 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
 
 ``` r
 map_sif <- tibble::as.tibble(ko_cor)  %>%
+    dplyr::mutate(flag = def_pol(X,Y,silv_pol)) %>%  
+  dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) +
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
   ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()+
@@ -884,10 +958,10 @@ map_sif <- tibble::as.tibble(ko_cor)  %>%
 map_sif
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-52-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-55-1.png)<!-- -->
 
 ``` r
 map_sif + map_xco2
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-56-1.png)<!-- -->
