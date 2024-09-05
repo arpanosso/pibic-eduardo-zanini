@@ -43,9 +43,19 @@ est_descritiva <- function(x){
            Norm = pSW))
 }
 
+# Cálculo da correlação entre fco2 e xco2
+get_corr_xco2 <- function(df){
+  fco2  = df %>% pull(fco2)
+  xco2 = df %>% pull(xco2)
+  cor(fco2,xco2)
+}
 
-
-
+# Cálculo dos da correlação entre fco2 e sif
+get_corr_sif <- function(df){
+  fco2  = df %>% pull(fco2)
+  sif = df %>% pull(sif)
+  cor(fco2,sif)
+}
 
 
 

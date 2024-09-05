@@ -761,7 +761,7 @@ data_set_cor_pasto <- data_set_cor %>% filter(cultura == "pasto") %>% select(-cu
 sp::coordinates(data_set_cor_pasto)=~x+y  
 form <- cor_xco2 ~ 1 
 vari_cor <- gstat::variogram(form, data=data_set_cor_pasto,
-                             cutoff=60,width=5,cressie=FALSE)
+                             cutoff=50,width=2.8,cressie=FALSE)
 vari_cor  %>%  
   ggplot(ggplot2::aes(x=dist, y=gamma)) +
   geom_point()
@@ -771,7 +771,7 @@ vari_cor  %>%
 
 ``` r
 m_cor <- gstat::fit.variogram(vari_cor,
-                              gstat::vgm(0.09,"Sph",20,0.02))
+                              gstat::vgm(0.08,"Sph",60,0.03))
 plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
@@ -780,7 +780,7 @@ plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ``` r
 x <- data_set_cor %>% filter(cultura == "pasto") %>% drop_na() %>% pull(x)
 y <- data_set_cor %>% filter(cultura == "pasto") %>% drop_na() %>% pull(y)
-dis <- 1.5 #Distância entre pontos
+dis <- 1.5 # Distância entre pontos
 grid <- expand.grid(X=seq(min(x),max(x),dis), Y=seq(min(y),max(y),dis))
 sp::gridded(grid) = ~ X + Y
 ```
@@ -814,7 +814,7 @@ map_xco2
 ``` r
 form <- cor_sif ~ 1
 vari_cor <- gstat::variogram(form, data=data_set_cor_pasto,
-                             cutoff=60,width=5.2,cressie=FALSE)
+                             cutoff=55,width=2.6,cressie=FALSE)
 vari_cor  %>%
   ggplot(ggplot2::aes(x=dist, y=gamma)) +
   geom_point()
@@ -824,7 +824,7 @@ vari_cor  %>%
 
 ``` r
 m_cor <- gstat::fit.variogram(vari_cor,
-                              gstat::vgm(0.07,"Sph",6,0.02))
+                              gstat::vgm(0.07,"Sph",20,0.02))
 plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
@@ -867,7 +867,7 @@ data_set_cor_silvi <- data_set_cor %>% filter(cultura == "silvipastoril") %>% se
 sp::coordinates(data_set_cor_silvi)=~x+y  
 form <- cor_xco2 ~ 1 
 vari_cor <- gstat::variogram(form, data=data_set_cor_silvi,
-                             cutoff=60,width=5,cressie=FALSE)
+                             cutoff=100,width=2.6,cressie=FALSE)
 vari_cor  %>%  
   ggplot(ggplot2::aes(x=dist, y=gamma)) +
   geom_point()
@@ -877,7 +877,7 @@ vari_cor  %>%
 
 ``` r
 m_cor <- gstat::fit.variogram(vari_cor,
-                              gstat::vgm(0.09,"Sph",20,0.02))
+                              gstat::vgm(0.1,"Sph",40,0.01))
 plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
@@ -886,7 +886,7 @@ plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ``` r
 x <- data_set_cor %>% filter(cultura == "silvipastoril") %>% drop_na() %>% pull(x)
 y <- data_set_cor %>% filter(cultura == "silvipastoril") %>% drop_na() %>% pull(y)
-dis <- 1.5 #Distância entre pontos
+dis <- 1 #Distância entre pontos
 grid <- expand.grid(X=seq(min(x),max(x),dis), Y=seq(min(y),max(y),dis))
 sp::gridded(grid) = ~ X + Y
 ```
@@ -920,7 +920,7 @@ map_xco2
 ``` r
 form <- cor_sif ~ 1
 vari_cor <- gstat::variogram(form, data=data_set_cor_silvi,
-                             cutoff=60,width=5.2,cressie=FALSE)
+                             cutoff=60,width=5,cressie=FALSE)
 vari_cor  %>%
   ggplot(ggplot2::aes(x=dist, y=gamma)) +
   geom_point()
@@ -930,7 +930,7 @@ vari_cor  %>%
 
 ``` r
 m_cor <- gstat::fit.variogram(vari_cor,
-                              gstat::vgm(0.07,"Sph",6,0.02))
+                              gstat::vgm(0.07,"Sph",20,0.04))
 plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
