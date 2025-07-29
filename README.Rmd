@@ -347,7 +347,8 @@ mcor <- cor(data_set_mean %>%
             )
 head(round(mcor,2))
 col <- colorRampPalette(c("green", "blue"))(20)
-corrplot::corrplot(mcor, method = "ellipse", type = "upper", col=col,tl.col="black",tl.srt=90,insig = "blank",na.label = " ", na.label.col = "white")
+corrplot::corrplot(mcor, method = "ellipse", type = "upper",tl.col="black",tl.srt=90,insig = "blank",na.label = " ", 
+                   na.label.col = "white")
 ```
 
 
@@ -361,15 +362,18 @@ mcor <- cor(data_set_mean %>%
             )
 head(round(mcor,2))
 col <- colorRampPalette(c("green", "blue"))(20)
-corrplot::corrplot(mcor, method = "ellipse", type = "upper", col=col,tl.col="black",tl.srt=90,insig = "blank",na.label = " ", na.label.col = "white")
+corrplot::corrplot(mcor, method = "ellipse", type = "upper",tl.col="black",tl.srt=90,insig = "blank",na.label = " ", na.label.col = "white")
 ```
 
 ```{r}
 data_set_mean %>% 
-  ggplot(aes(x=data, y=fco2)) + 
+  ggplot(aes(x=data, y=fco2, color = cultura)) + 
   geom_line() +
-  facet_wrap(~cultura) + 
-  theme_bw()
+  geom_point() +
+  # facet_wrap(~cultura) + 
+  theme_bw() +
+  theme(legend.position = "top")+
+  scale_color_manual(values = c("black","red"))
 ```
 
 # Correlação Espacial
@@ -485,7 +489,7 @@ data_set_cor_pasto <- data_set_cor %>% filter(cultura == "pasto") %>% select(-cu
 sp::coordinates(data_set_cor_pasto)=~x+y  
 form <- cor_xco2 ~ 1 
 vari_cor <- gstat::variogram(form, data=data_set_cor_pasto,
-                             cutoff=50,width=2.8,cressie=FALSE)
+                             cutoff=50,width=3.8,cressie=FALSE)
 vari_cor  %>%  
   ggplot(ggplot2::aes(x=dist, y=gamma)) +
   geom_point()
@@ -506,7 +510,7 @@ sp::gridded(grid) = ~ X + Y
 ```
 
 ```{r}
-ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor, 
+ko_cor_pt_xco2<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor, 
     block=c(0,0),
     nsim=0,
     na.action=na.pass,
@@ -515,13 +519,15 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
 ```
 
 ```{r}
-map_xco2 <- tibble::as.tibble(ko_cor)  %>% 
+map_xco2 <- tibble::as.tibble(ko_cor_pt_xco2)  %>% 
   dplyr::mutate(flag = def_pol(X,Y,pasto_pol)) %>%  
   dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
-  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal() +
-  labs(fill="XCO2_cor")
+  ggplot2::scale_fill_viridis_c(option = "inferno")+
+  ggplot2::coord_equal() +
+  labs(fill="XCO2_cor")+
+  theme_bw()
 map_xco2
 ```
 
@@ -531,7 +537,7 @@ map_xco2
 ```{r}
 form <- cor_sif ~ 1
 vari_cor <- gstat::variogram(form, data=data_set_cor_pasto,
-                             cutoff=55,width=2.6,cressie=FALSE)
+                             cutoff=55,width=3.6,cressie=FALSE)
 vari_cor  %>%
   ggplot(ggplot2::aes(x=dist, y=gamma)) +
   geom_point()
@@ -544,7 +550,7 @@ plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
 ```{r}
-ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
+ko_cor_pt_sif<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
     block=c(0,0),
     nsim=0,
     na.action=na.pass,
@@ -553,19 +559,29 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
 ```
 
 ```{r}
-map_sif <- tibble::as.tibble(ko_cor)  %>%
+map_sif <- tibble::as.tibble(ko_cor_pt_sif)  %>%
     dplyr::mutate(flag = def_pol(X,Y,pasto_pol)) %>%  
   dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) +
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
-  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()+
-  labs(fill="SIF_cor")
+  ggplot2::scale_fill_viridis_c() +   
+  ggplot2::coord_equal()+
+  labs(fill="SIF_cor")+
+  theme_bw()
 map_sif
 ```
 
 ```{r}
 map_sif + map_xco2
 ```
+### Correlação de mapas
+
+```{r}
+cor_sif <- ko_cor_pt_sif |> as_tibble() |> pull(var1.pred)
+cor_xco2 <- ko_cor_pt_xco2 |> as_tibble() |> pull(var1.pred)
+cor.test(cor_sif,cor_xco2)
+```
+
 
 ## Análise geoestatística - Silvipastoril
 
@@ -595,7 +611,7 @@ sp::gridded(grid) = ~ X + Y
 ```
 
 ```{r}
-ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor, 
+ko_cor_silv_xco2<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor, 
     block=c(0,0),
     nsim=0,
     na.action=na.pass,
@@ -604,13 +620,15 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
 ```
 
 ```{r}
-map_xco2 <- tibble::as.tibble(ko_cor)  %>%  
+map_xco2 <- tibble::as.tibble(ko_cor_silv_xco2)  %>%  
     dplyr::mutate(flag = def_pol(X,Y,silv_pol)) %>%  
   dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
-  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal() +
-  labs(fill="XCO2_cor")
+  ggplot2::scale_fill_viridis_c(option = "inferno")+   
+  ggplot2::coord_equal() +
+  labs(fill="XCO2_cor") +
+  theme_bw()
 map_xco2
 ```
 
@@ -633,7 +651,7 @@ plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
 ```{r}
-ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
+ko_cor_silv_sif<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
     block=c(0,0),
     nsim=0,
     na.action=na.pass,
@@ -642,16 +660,26 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
 ```
 
 ```{r}
-map_sif <- tibble::as.tibble(ko_cor)  %>%
+map_sif <- tibble::as.tibble(ko_cor_silv_sif)  %>%
     dplyr::mutate(flag = def_pol(X,Y,silv_pol)) %>%  
   dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) +
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
-  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()+
+  ggplot2::scale_fill_viridis_c() +
+  ggplot2::coord_equal()+
+  theme_bw()+
   labs(fill="SIF_cor")
 map_sif
 ```
 
 ```{r}
 map_sif + map_xco2
+```
+
+### Correlação de mapas
+
+```{r}
+cor_sif <- ko_cor_silv_sif |> as_tibble() |> pull(var1.pred)
+cor_xco2 <- ko_cor_silv_xco2 |> as_tibble() |> pull(var1.pred)
+cor.test(cor_sif,cor_xco2)
 ```

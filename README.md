@@ -139,8 +139,8 @@ oco2  %>%
 
 ![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
-Extrair os coeficientes $\alpha$ e $\beta$ da análise de regressão
-linear $(y=\alpha+\beta x)$.
+Extrair os coeficientes $`\alpha`$ e $`\beta`$ da análise de regressão
+linear $`(y=\alpha+\beta x)`$.
 
 ``` r
 modelo_linear_tendencia <- lm(xco2~data,
@@ -250,8 +250,8 @@ br %>%
 
 ![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
-Observe que utilizamos `dplyr::sample_n()` para retirar apenas $1000$
-amostras do total do banco de dados $37387$.
+Observe que utilizamos `dplyr::sample_n()` para retirar apenas $`1000`$
+amostras do total do banco de dados $`37387`$.
 
 #### Estatísticas descritivas
 
@@ -275,31 +275,31 @@ Data summary
 
 **Variable type: character**
 
-| skim_variable            | n_missing | complete_rate | min | max | empty | n_unique | whitespace |
-|:-------------------------|----------:|--------------:|----:|----:|------:|---------:|-----------:|
-| longitude_bnds           |         0 |             1 |  11 |  11 |     0 |       39 |          0 |
-| latitude_bnds            |         0 |             1 |   7 |  11 |     0 |       38 |          0 |
-| time_bnds_yyyymmddhhmmss |         0 |             1 |  29 |  29 |     0 |     1765 |          0 |
-| alt_bnds_km              |         0 |             1 |  11 |  20 |     0 |       64 |          0 |
+| skim_variable | n_missing | complete_rate | min | max | empty | n_unique | whitespace |
+|:---|---:|---:|---:|---:|---:|---:|---:|
+| longitude_bnds | 0 | 1 | 11 | 11 | 0 | 39 | 0 |
+| latitude_bnds | 0 | 1 | 7 | 11 | 0 | 38 | 0 |
+| time_bnds_yyyymmddhhmmss | 0 | 1 | 29 | 29 | 0 | 1765 | 0 |
+| alt_bnds_km | 0 | 1 | 11 | 20 | 0 | 64 | 0 |
 
 **Variable type: numeric**
 
-| skim_variable                                                 | n_missing | complete_rate |          mean |           sd |            p0 |           p25 |           p50 |           p75 |          p100 | hist  |
-|:--------------------------------------------------------------|----------:|--------------:|--------------:|-------------:|--------------:|--------------:|--------------:|--------------:|--------------:|:------|
-| longitude                                                     |         0 |             1 | -5.120000e+01 | 8.280000e+00 | -7.350000e+01 | -5.650000e+01 | -5.050000e+01 | -4.450000e+01 | -3.550000e+01 | ▂▃▇▇▅ |
-| latitude                                                      |         0 |             1 | -1.179000e+01 | 7.850000e+00 | -3.250000e+01 | -1.750000e+01 | -1.050000e+01 | -5.500000e+00 |  4.500000e+00 | ▂▃▇▇▃ |
-| time_yyyymmddhhmmss                                           |         0 |             1 |  2.016952e+13 | 1.564571e+10 |  2.014091e+13 |  2.016020e+13 |  2.017052e+13 |  2.018092e+13 |  2.020012e+13 | ▇▇▅▆▇ |
-| altitude_km                                                   |         0 |             1 |  3.123200e+03 | 1.108800e+02 |  2.555700e+03 |  3.056350e+03 |  3.126310e+03 |  3.196250e+03 |  3.307800e+03 | ▁▁▂▇▇ |
-| fluorescence_radiance_757nm_uncert_idp_ph_sec_1_m_2_sr_1_um_1 |         0 |             1 |  8.520719e+17 | 5.599367e+18 | -9.999990e+05 |  6.323256e+17 |  6.951592e+17 |  7.671609e+17 |  9.365539e+20 | ▇▁▁▁▁ |
-| fluorescence_radiance_757nm_idp_ph_sec_1_m_2_sr_1_um_1        |         0 |             1 | -1.358150e+18 | 1.946775e+20 | -3.400736e+22 |  7.735159e+17 |  1.676353e+18 |  2.566089e+18 |  2.316112e+20 | ▁▁▁▁▇ |
-| xco2_moles_mole_1                                             |         0 |             1 |  0.000000e+00 | 0.000000e+00 |  0.000000e+00 |  0.000000e+00 |  0.000000e+00 |  0.000000e+00 |  0.000000e+00 | ▁▁▇▁▁ |
-| aerosol_total_aod                                             |         0 |             1 |  4.828100e+02 | 7.848572e+04 |  2.000000e-02 |  1.100000e-01 |  1.700000e-01 |  2.600000e-01 |  1.487623e+07 | ▇▁▁▁▁ |
-| fluorescence_offset_relative_771nm_idp                        |         0 |             1 | -4.814400e+02 | 2.193698e+04 | -9.999990e+05 |  1.000000e-02 |  1.000000e-02 |  2.000000e-02 |  1.230000e+00 | ▁▁▁▁▇ |
-| fluorescence_at_reference_ph_sec_1_m_2_sr_1_um_1              |         0 |             1 |  1.296932e+18 | 2.245185e+18 | -8.394901e+19 |  2.014560e+17 |  1.268715e+18 |  2.395217e+18 |  8.610756e+19 | ▁▁▇▁▁ |
-| fluorescence_radiance_771nm_idp_ph_sec_1_m_2_sr_1_um_1        |         0 |             1 |  1.904438e+18 | 2.236381e+18 | -8.453983e+19 |  9.694709e+17 |  1.987682e+18 |  2.918792e+18 |  4.338306e+19 | ▁▁▁▇▁ |
-| fluorescence_offset_relative_757nm_idp                        |         0 |             1 | -3.744400e+02 | 1.934763e+04 | -9.999990e+05 |  1.000000e-02 |  1.000000e-02 |  2.000000e-02 |  2.086000e+01 | ▁▁▁▁▇ |
-| fluorescence_radiance_771nm_uncert_idp_ph_sec_1_m_2_sr_1_um_1 |         0 |             1 |  5.235574e+17 | 7.580471e+16 | -9.999990e+05 |  4.695467e+17 |  5.216793e+17 |  5.736367e+17 |  1.143215e+18 | ▁▂▇▁▁ |
-| XCO2                                                          |         0 |             1 |  3.858900e+02 | 3.120000e+00 |  3.383400e+02 |  3.844100e+02 |  3.862900e+02 |  3.878000e+02 |  4.301400e+02 | ▁▁▇▁▁ |
+| skim_variable | n_missing | complete_rate | mean | sd | p0 | p25 | p50 | p75 | p100 | hist |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|:---|
+| longitude | 0 | 1 | -5.120000e+01 | 8.280000e+00 | -7.350000e+01 | -5.650000e+01 | -5.050000e+01 | -4.450000e+01 | -3.550000e+01 | ▂▃▇▇▅ |
+| latitude | 0 | 1 | -1.179000e+01 | 7.850000e+00 | -3.250000e+01 | -1.750000e+01 | -1.050000e+01 | -5.500000e+00 | 4.500000e+00 | ▂▃▇▇▃ |
+| time_yyyymmddhhmmss | 0 | 1 | 2.016952e+13 | 1.564571e+10 | 2.014091e+13 | 2.016020e+13 | 2.017052e+13 | 2.018092e+13 | 2.020012e+13 | ▇▇▅▆▇ |
+| altitude_km | 0 | 1 | 3.123200e+03 | 1.108800e+02 | 2.555700e+03 | 3.056350e+03 | 3.126310e+03 | 3.196250e+03 | 3.307800e+03 | ▁▁▂▇▇ |
+| fluorescence_radiance_757nm_uncert_idp_ph_sec_1_m_2_sr_1_um_1 | 0 | 1 | 8.520719e+17 | 5.599367e+18 | -9.999990e+05 | 6.323256e+17 | 6.951592e+17 | 7.671609e+17 | 9.365539e+20 | ▇▁▁▁▁ |
+| fluorescence_radiance_757nm_idp_ph_sec_1_m_2_sr_1_um_1 | 0 | 1 | -1.358150e+18 | 1.946775e+20 | -3.400736e+22 | 7.735159e+17 | 1.676353e+18 | 2.566089e+18 | 2.316112e+20 | ▁▁▁▁▇ |
+| xco2_moles_mole_1 | 0 | 1 | 0.000000e+00 | 0.000000e+00 | 0.000000e+00 | 0.000000e+00 | 0.000000e+00 | 0.000000e+00 | 0.000000e+00 | ▁▁▇▁▁ |
+| aerosol_total_aod | 0 | 1 | 4.828100e+02 | 7.848572e+04 | 2.000000e-02 | 1.100000e-01 | 1.700000e-01 | 2.600000e-01 | 1.487623e+07 | ▇▁▁▁▁ |
+| fluorescence_offset_relative_771nm_idp | 0 | 1 | -4.814400e+02 | 2.193698e+04 | -9.999990e+05 | 1.000000e-02 | 1.000000e-02 | 2.000000e-02 | 1.230000e+00 | ▁▁▁▁▇ |
+| fluorescence_at_reference_ph_sec_1_m_2_sr_1_um_1 | 0 | 1 | 1.296932e+18 | 2.245185e+18 | -8.394901e+19 | 2.014560e+17 | 1.268715e+18 | 2.395217e+18 | 8.610756e+19 | ▁▁▇▁▁ |
+| fluorescence_radiance_771nm_idp_ph_sec_1_m_2_sr_1_um_1 | 0 | 1 | 1.904438e+18 | 2.236381e+18 | -8.453983e+19 | 9.694709e+17 | 1.987682e+18 | 2.918792e+18 | 4.338306e+19 | ▁▁▁▇▁ |
+| fluorescence_offset_relative_757nm_idp | 0 | 1 | -3.744400e+02 | 1.934763e+04 | -9.999990e+05 | 1.000000e-02 | 1.000000e-02 | 2.000000e-02 | 2.086000e+01 | ▁▁▁▁▇ |
+| fluorescence_radiance_771nm_uncert_idp_ph_sec_1_m_2_sr_1_um_1 | 0 | 1 | 5.235574e+17 | 7.580471e+16 | -9.999990e+05 | 4.695467e+17 | 5.216793e+17 | 5.736367e+17 | 1.143215e+18 | ▁▂▇▁▁ |
+| XCO2 | 0 | 1 | 3.858900e+02 | 3.120000e+00 | 3.383400e+02 | 3.844100e+02 | 3.862900e+02 | 3.878000e+02 | 4.301400e+02 | ▁▁▇▁▁ |
 
 ### Conhecendo a base de dados de emissão de CO<sub>2</sub> do solo
 
@@ -349,8 +349,8 @@ glimpse(data_fco2)
 #> $ HLIFS             <dbl> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, …
 ```
 
-Observe que utilizamos `dplyr::sample_n()` para retirar apenas $1000$
-amostras do total do banco de dados $146,646$.
+Observe que utilizamos `dplyr::sample_n()` para retirar apenas $`1000`$
+amostras do total do banco de dados $`146,646`$.
 
 #### Estatísticas descritivas
 
@@ -579,7 +579,8 @@ head(round(mcor,2))
 #> sif   0.53   0.17   0.20  0.67 -0.19
 #> tmed  0.77  -0.11  -0.27  0.31  0.64
 col <- colorRampPalette(c("green", "blue"))(20)
-corrplot::corrplot(mcor, method = "ellipse", type = "upper", col=col,tl.col="black",tl.srt=90,insig = "blank",na.label = " ", na.label.col = "white")
+corrplot::corrplot(mcor, method = "ellipse", type = "upper",tl.col="black",tl.srt=90,insig = "blank",na.label = " ", 
+                   na.label.col = "white")
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
@@ -608,17 +609,20 @@ head(round(mcor,2))
 #> sif    0.27   0.27  0.64 -0.06
 #> tmed  -0.09  -0.25  0.31  0.39
 col <- colorRampPalette(c("green", "blue"))(20)
-corrplot::corrplot(mcor, method = "ellipse", type = "upper", col=col,tl.col="black",tl.srt=90,insig = "blank",na.label = " ", na.label.col = "white")
+corrplot::corrplot(mcor, method = "ellipse", type = "upper",tl.col="black",tl.srt=90,insig = "blank",na.label = " ", na.label.col = "white")
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
 ``` r
 data_set_mean %>% 
-  ggplot(aes(x=data, y=fco2)) + 
+  ggplot(aes(x=data, y=fco2, color = cultura)) + 
   geom_line() +
-  facet_wrap(~cultura) + 
-  theme_bw()
+  geom_point() +
+  # facet_wrap(~cultura) + 
+  theme_bw() +
+  theme(legend.position = "top")+
+  scale_color_manual(values = c("black","red"))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
@@ -761,7 +765,7 @@ data_set_cor_pasto <- data_set_cor %>% filter(cultura == "pasto") %>% select(-cu
 sp::coordinates(data_set_cor_pasto)=~x+y  
 form <- cor_xco2 ~ 1 
 vari_cor <- gstat::variogram(form, data=data_set_cor_pasto,
-                             cutoff=50,width=2.8,cressie=FALSE)
+                             cutoff=50,width=3.8,cressie=FALSE)
 vari_cor  %>%  
   ggplot(ggplot2::aes(x=dist, y=gamma)) +
   geom_point()
@@ -786,7 +790,7 @@ sp::gridded(grid) = ~ X + Y
 ```
 
 ``` r
-ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor, 
+ko_cor_pt_xco2<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor, 
     block=c(0,0),
     nsim=0,
     na.action=na.pass,
@@ -797,13 +801,15 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
 ```
 
 ``` r
-map_xco2 <- tibble::as.tibble(ko_cor)  %>% 
+map_xco2 <- tibble::as.tibble(ko_cor_pt_xco2)  %>% 
   dplyr::mutate(flag = def_pol(X,Y,pasto_pol)) %>%  
   dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
-  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal() +
-  labs(fill="XCO2_cor")
+  ggplot2::scale_fill_viridis_c(option = "inferno")+
+  ggplot2::coord_equal() +
+  labs(fill="XCO2_cor")+
+  theme_bw()
 map_xco2
 ```
 
@@ -814,7 +820,7 @@ map_xco2
 ``` r
 form <- cor_sif ~ 1
 vari_cor <- gstat::variogram(form, data=data_set_cor_pasto,
-                             cutoff=55,width=2.6,cressie=FALSE)
+                             cutoff=55,width=3.6,cressie=FALSE)
 vari_cor  %>%
   ggplot(ggplot2::aes(x=dist, y=gamma)) +
   geom_point()
@@ -831,7 +837,7 @@ plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ![](README_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
 
 ``` r
-ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
+ko_cor_pt_sif<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
     block=c(0,0),
     nsim=0,
     na.action=na.pass,
@@ -842,13 +848,15 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor,
 ```
 
 ``` r
-map_sif <- tibble::as.tibble(ko_cor)  %>%
+map_sif <- tibble::as.tibble(ko_cor_pt_sif)  %>%
     dplyr::mutate(flag = def_pol(X,Y,pasto_pol)) %>%  
   dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) +
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
-  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()+
-  labs(fill="SIF_cor")
+  ggplot2::scale_fill_viridis_c() +   
+  ggplot2::coord_equal()+
+  labs(fill="SIF_cor")+
+  theme_bw()
 map_sif
 ```
 
@@ -858,7 +866,25 @@ map_sif
 map_sif + map_xco2
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-46-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-46-1.png)<!-- --> \###
+Correlação de mapas
+
+``` r
+cor_sif <- ko_cor_pt_sif |> as_tibble() |> pull(var1.pred)
+cor_xco2 <- ko_cor_pt_xco2 |> as_tibble() |> pull(var1.pred)
+cor.test(cor_sif,cor_xco2)
+#> 
+#>  Pearson's product-moment correlation
+#> 
+#> data:  cor_sif and cor_xco2
+#> t = -430.15, df = 8987, p-value < 2.2e-16
+#> alternative hypothesis: true correlation is not equal to 0
+#> 95 percent confidence interval:
+#>  -0.9775036 -0.9755877
+#> sample estimates:
+#>       cor 
+#> -0.976565
+```
 
 ## Análise geoestatística - Silvipastoril
 
@@ -873,7 +899,7 @@ vari_cor  %>%
   geom_point()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
 
 ``` r
 m_cor <- gstat::fit.variogram(vari_cor,
@@ -881,7 +907,7 @@ m_cor <- gstat::fit.variogram(vari_cor,
 plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-49-1.png)<!-- -->
 
 ``` r
 x <- data_set_cor %>% filter(cultura == "silvipastoril") %>% drop_na() %>% pull(x)
@@ -892,7 +918,7 @@ sp::gridded(grid) = ~ X + Y
 ```
 
 ``` r
-ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor, 
+ko_cor_silv_xco2<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor, 
     block=c(0,0),
     nsim=0,
     na.action=na.pass,
@@ -903,17 +929,19 @@ ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
 ```
 
 ``` r
-map_xco2 <- tibble::as.tibble(ko_cor)  %>%  
+map_xco2 <- tibble::as.tibble(ko_cor_silv_xco2)  %>%  
     dplyr::mutate(flag = def_pol(X,Y,silv_pol)) %>%  
   dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) + 
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
-  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal() +
-  labs(fill="XCO2_cor")
+  ggplot2::scale_fill_viridis_c(option = "inferno")+   
+  ggplot2::coord_equal() +
+  labs(fill="XCO2_cor") +
+  theme_bw()
 map_xco2
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-51-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-52-1.png)<!-- -->
 
 #### 
 
@@ -926,7 +954,7 @@ vari_cor  %>%
   geom_point()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-52-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
 
 ``` r
 m_cor <- gstat::fit.variogram(vari_cor,
@@ -934,34 +962,55 @@ m_cor <- gstat::fit.variogram(vari_cor,
 plot(vari_cor,model=m_cor, col=1,pl=F,pch=16)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-54-1.png)<!-- -->
 
 ``` r
-ko_cor<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
+ko_cor_silv_sif<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_cor,
     block=c(0,0),
     nsim=0,
     na.action=na.pass,
     debug.level=-1,
     )
 #> [using ordinary kriging]
-#> 100% done
+#>  83% done100% done
 ```
 
 ``` r
-map_sif <- tibble::as.tibble(ko_cor)  %>%
+map_sif <- tibble::as.tibble(ko_cor_silv_sif)  %>%
     dplyr::mutate(flag = def_pol(X,Y,silv_pol)) %>%  
   dplyr::filter(flag) %>% 
   ggplot2::ggplot(ggplot2::aes(x=X, y=Y)) +
   ggplot2::geom_tile(ggplot2::aes(fill = var1.pred)) +
-  ggplot2::scale_fill_gradient(low = "yellow", high = "blue") +   ggplot2::coord_equal()+
+  ggplot2::scale_fill_viridis_c() +
+  ggplot2::coord_equal()+
+  theme_bw()+
   labs(fill="SIF_cor")
 map_sif
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-55-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-56-1.png)<!-- -->
 
 ``` r
 map_sif + map_xco2
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-56-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-57-1.png)<!-- -->
+
+### Correlação de mapas
+
+``` r
+cor_sif <- ko_cor_silv_sif |> as_tibble() |> pull(var1.pred)
+cor_xco2 <- ko_cor_silv_xco2 |> as_tibble() |> pull(var1.pred)
+cor.test(cor_sif,cor_xco2)
+#> 
+#>  Pearson's product-moment correlation
+#> 
+#> data:  cor_sif and cor_xco2
+#> t = -521.95, df = 9470, p-value < 2.2e-16
+#> alternative hypothesis: true correlation is not equal to 0
+#> 95 percent confidence interval:
+#>  -0.9837233 -0.9823698
+#> sample estimates:
+#>        cor 
+#> -0.9830599
+```
