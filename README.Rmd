@@ -261,8 +261,7 @@ data_set <- left_join(fco2 %>%
             mutate(ano = lubridate::year(data),
                    mes = lubridate::month(data)
                    ) %>% 
-            select(ID, data, cultura, ano, mes, x, y, FCO2, Ts,
-                   Us, MO, Macro, VTP, ARG, ano_mes,Tmed,Tmax, Tmin, Umed,
+            select(ID, data, cultura, ano, mes, x, y, FCO2:ARG, ano_mes,Tmed,Tmax, Tmin, Umed,
                    Umax, Umin, PkPa, Rad, Eto, Velmax, Velmin, Dir_vel,
                    chuva, inso), 
           xco2 %>% 
@@ -676,10 +675,16 @@ map_sif
 map_sif + map_xco2
 ```
 
-### Correlação de mapas
+### Correlação de mapas de correlação
 
 ```{r}
 cor_sif <- ko_cor_silv_sif |> as_tibble() |> pull(var1.pred)
 cor_xco2 <- ko_cor_silv_xco2 |> as_tibble() |> pull(var1.pred)
 cor.test(cor_sif,cor_xco2)
 ```
+### 
+
+```{r}
+data_set |> glimpse()
+```
+
