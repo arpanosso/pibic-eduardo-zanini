@@ -800,7 +800,7 @@ grid_rf <- grid_regular(
   min_n(range = c(2, 10)),
   mtry(range = c(3, 10)), 
   trees(range = c(50, 500)),
-  levels = c(3, 3, 3)
+  levels = c(5, 5, 5)
 )
 
 fco2_rf_tune_grid <- tune_grid(
@@ -861,6 +861,43 @@ vip(fco2_rf_last_fit_model,
           ) +
   theme_bw()
 ```
+
+
+```{r}
+features <- rownames(fco2_rf_last_fit_model$fit$importance)
+importance_top_10 <- fco2_rf_last_fit_model$fit$importance |> 
+  as_tibble() |> 
+  add_column(feature = features) |> 
+  arrange(desc(IncNodePurity)) |> 
+  relocate(feature) |> 
+  slice(1:10)
+
+atr_fisicos <- features[c(14:17,19:21)]
+atr_quimicos <- features[c(4:13)]
+atr_dinamicos <- features[c(2,3,18)]
+atr_climaticos <- features[c(22:34)]
+atr_orbitais <- features[c(35:36)]
+
+importance_top_10 |> 
+  arrange(IncNodePurity) |> 
+  mutate(feature_type = case_when(
+    feature %in% atr_fisicos   ~ "físicos",
+    feature %in% atr_quimicos  ~ "químicos",
+    feature %in% atr_dinamicos ~ "dinâmicos",
+    feature %in% atr_climaticos ~ "climáticos",
+    feature %in% atr_orbitais  ~ "orbitais",
+    TRUE                        ~ "outro"
+  ),
+  feature = feature |> fct_reorder(IncNodePurity)) |> 
+  ggplot(aes(x=IncNodePurity, y=feature, fill = feature_type)) +
+  geom_col(color="black") +
+  theme_bw()+
+  labs(x = "Importância",y="",
+       fill="Grupo") +
+  theme(legend.position = "top") +
+  scale_fill_viridis_d()
+```
+
 ### Aprendizado de Máquina - Modelo Silvipastoril
 
 ```{r}
@@ -973,7 +1010,7 @@ grid_rf <- grid_regular(
   min_n(range = c(2, 10)),
   mtry(range = c(3, 10)), 
   trees(range = c(50, 500)),
-  levels = c(3, 3, 3)
+  levels = c(5, 5, 5)
 )
 
 fco2_rf_tune_grid <- tune_grid(
@@ -1034,7 +1071,34 @@ vip(fco2_rf_last_fit_model,
           ) +
   theme_bw()
 ```
+```{r}
+features <- rownames(fco2_rf_last_fit_model$fit$importance)
+importance_top_10 <- fco2_rf_last_fit_model$fit$importance |> 
+  as_tibble() |> 
+  add_column(feature = features) |> 
+  arrange(desc(IncNodePurity)) |> 
+  relocate(feature) |> 
+  slice(1:10)
 
+importance_top_10 |> 
+  arrange(IncNodePurity) |> 
+  mutate(feature_type = case_when(
+    feature %in% atr_fisicos   ~ "físicos",
+    feature %in% atr_quimicos  ~ "químicos",
+    feature %in% atr_dinamicos ~ "dinâmicos",
+    feature %in% atr_climaticos ~ "climáticos",
+    feature %in% atr_orbitais  ~ "orbitais",
+    TRUE                        ~ "outro"
+  ),
+  feature = feature |> fct_reorder(IncNodePurity)) |> 
+  ggplot(aes(x=IncNodePurity, y=feature, fill = feature_type)) +
+  geom_col(color="black") +
+  theme_bw()+
+  labs(x = "Importância",y="",
+       fill="Grupo") +
+  theme(legend.position = "top") +
+  scale_fill_viridis_d()
+```
 
 
 ### Aprendizado de Máquina - Modelo pasto
@@ -1148,7 +1212,7 @@ grid_rf <- grid_regular(
   min_n(range = c(2, 10)),
   mtry(range = c(3, 10)), 
   trees(range = c(50, 500)),
-  levels = c(3, 3, 3)
+  levels = c(5, 5, 5)
 )
 
 fco2_rf_tune_grid <- tune_grid(
@@ -1208,3 +1272,32 @@ vip(fco2_rf_last_fit_model,
           ) +
   theme_bw()
 ```
+```{r}
+features <- rownames(fco2_rf_last_fit_model$fit$importance)
+importance_top_10 <- fco2_rf_last_fit_model$fit$importance |> 
+  as_tibble() |> 
+  add_column(feature = features) |> 
+  arrange(desc(IncNodePurity)) |> 
+  relocate(feature) |> 
+  slice(1:10)
+
+importance_top_10 |> 
+  arrange(IncNodePurity) |> 
+  mutate(feature_type = case_when(
+    feature %in% atr_fisicos   ~ "físicos",
+    feature %in% atr_quimicos  ~ "químicos",
+    feature %in% atr_dinamicos ~ "dinâmicos",
+    feature %in% atr_climaticos ~ "climáticos",
+    feature %in% atr_orbitais  ~ "orbitais",
+    TRUE                        ~ "outro"
+  ),
+  feature = feature |> fct_reorder(IncNodePurity)) |> 
+  ggplot(aes(x=IncNodePurity, y=feature, fill = feature_type)) +
+  geom_col(color="black") +
+  theme_bw()+
+  labs(x = "Importância",y="",
+       fill="Grupo") +
+  theme(legend.position = "top") +
+  scale_fill_viridis_d()
+```
+
