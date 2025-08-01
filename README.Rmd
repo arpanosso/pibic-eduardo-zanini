@@ -683,6 +683,8 @@ cor_xco2 <- ko_cor_silv_xco2 |> as_tibble() |> pull(var1.pred)
 cor.test(cor_sif,cor_xco2)
 ```
 
+# Machine Learning
+
 ### Aprendizado de Máquina - Modelo geral
 
 ```{r}
@@ -697,7 +699,6 @@ data_set_temporal <- data_set |>
  visdat::vis_miss(data_set_temporal) 
 ```
 ## Definindo a Base de treino e teste
-
 
 ```{r}
 data_set_ml <- data_set_temporal %>% #<-------
@@ -751,8 +752,6 @@ fco2_train   %>%    select(-c(data,cultura)) %>%
 ## Preparando os dados
 
 ```{r}
-fco2_train$cultura |> table()
-
 fco2_recipe <- recipe(fco2 ~ ., 
                       data = fco2_train %>% 
             select(-data) 
@@ -797,9 +796,9 @@ fco2_rf_wf <- workflow()   %>%
 ### Tune
 ```{r, results='hide'}
 grid_rf <- grid_regular(
-  min_n(range = c(2, 10)),
-  mtry(range = c(3, 10)), 
-  trees(range = c(50, 500)),
+  min_n(range = c(2, 10)), ## tentar até 250
+  mtry(range = c(3, 10)), ## no máximo 30
+  trees(range = c(50, 1000)),
   levels = c(5, 5, 5)
 )
 
@@ -897,6 +896,23 @@ importance_top_10 |>
   theme(legend.position = "top") +
   scale_fill_viridis_d()
 ```
+
+```{r}
+da <- fco2_test_preds %>%
+  filter(fco2 > 0, .pred>0 )
+
+my_r <- cor(da$fco2,da$.pred)
+my_r2 <- my_r*my_r
+my_mse <- Metrics::mse(da$fco2,da$.pred)
+my_rmse <- Metrics::rmse(da$fco2,
+                         da$.pred)
+my_mae <- Metrics::mae(da$fco2,da$.pred)
+my_mape <- Metrics::mape(da$fco2,da$.pred)*100
+
+vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, MAPE=my_mape)
+print(data.frame(vector_of_metrics))
+```
+
 
 ### Aprendizado de Máquina - Modelo Silvipastoril
 
@@ -1009,7 +1025,7 @@ fco2_rf_wf <- workflow()   %>%
 grid_rf <- grid_regular(
   min_n(range = c(2, 10)),
   mtry(range = c(3, 10)), 
-  trees(range = c(50, 500)),
+  trees(range = c(50, 1000)),
   levels = c(5, 5, 5)
 )
 
@@ -1098,6 +1114,22 @@ importance_top_10 |>
        fill="Grupo") +
   theme(legend.position = "top") +
   scale_fill_viridis_d()
+```
+
+```{r}
+da <- fco2_test_preds %>%
+  filter(fco2 > 0, .pred>0 )
+
+my_r <- cor(da$fco2,da$.pred)
+my_r2 <- my_r*my_r
+my_mse <- Metrics::mse(da$fco2,da$.pred)
+my_rmse <- Metrics::rmse(da$fco2,
+                         da$.pred)
+my_mae <- Metrics::mae(da$fco2,da$.pred)
+my_mape <- Metrics::mape(da$fco2,da$.pred)*100
+
+vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, MAPE=my_mape)
+print(data.frame(vector_of_metrics))
 ```
 
 
@@ -1209,9 +1241,9 @@ fco2_rf_wf <- workflow()   %>%
 ### Tune
 ```{r, results='hide'}
 grid_rf <- grid_regular(
-  min_n(range = c(2, 10)),
-  mtry(range = c(3, 10)), 
-  trees(range = c(50, 500)),
+  min_n(range = c(2, 20)),
+  mtry(range = c(3, 25)), 
+  trees(range = c(50, 1000)),
   levels = c(5, 5, 5)
 )
 
@@ -1301,3 +1333,18 @@ importance_top_10 |>
   scale_fill_viridis_d()
 ```
 
+```{r}
+da <- fco2_test_preds %>%
+  filter(fco2 > 0, .pred>0 )
+
+my_r <- cor(da$fco2,da$.pred)
+my_r2 <- my_r*my_r
+my_mse <- Metrics::mse(da$fco2,da$.pred)
+my_rmse <- Metrics::rmse(da$fco2,
+                         da$.pred)
+my_mae <- Metrics::mae(da$fco2,da$.pred)
+my_mape <- Metrics::mape(da$fco2,da$.pred)*100
+
+vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, MAPE=my_mape)
+print(data.frame(vector_of_metrics))
+```
