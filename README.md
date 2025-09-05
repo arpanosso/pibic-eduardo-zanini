@@ -713,24 +713,10 @@ data_set_nest <- data_set %>%
   select(id,cultura,x,y,fco2,xco2,sif) %>% 
   #rename(dia = data) %>% 
   group_by(cultura, id) %>% 
-  nest(fco2:sif) 
+  nest(data = fco2:sif) 
 ```
 
 ``` r
-data_set_nest$data[1]
-#> [[1]]
-#> # A tibble: 8 × 3
-#>    fco2  xco2    sif
-#>   <dbl> <dbl>  <dbl>
-#> 1  1.14  386.  0.125
-#> 2  0.64  386.  0.125
-#> 3  0.77  389. -0.262
-#> 4  0.91  389. -0.262
-#> 5  0.69  389. -0.262
-#> 6  0.67  389. -0.262
-#> 7  0.78  382.  0.313
-#> 8  0.7   382.  0.313
-
 get_corr_xco2 <- function(df){
   fco2  = df %>% pull(fco2)
   xco2 = df %>% pull(xco2)
@@ -753,7 +739,7 @@ data_set_cor <- data_set_nest %>%
     cor_sif = map(data, get_corr_sif),
   ) %>% 
   select(id,x,y,cor_xco2,cor_sif) %>% 
-  unnest() %>% 
+  unnest(cols = c(cor_xco2, cor_sif)) %>%
   drop_na()
 ```
 
@@ -796,7 +782,7 @@ ko_cor_pt_xco2<-gstat::krige(formula=form, data_set_cor_pasto, grid, model=m_cor
     debug.level=-1,  
     )
 #> [using ordinary kriging]
-#> 100% done
+#>  42% done100% done
 ```
 
 ``` r
@@ -971,7 +957,7 @@ ko_cor_silv_sif<-gstat::krige(formula=form, data_set_cor_silvi, grid, model=m_co
     debug.level=-1,
     )
 #> [using ordinary kriging]
-#>  68% done100% done
+#> 100% done
 ```
 
 ``` r
@@ -1016,11 +1002,56 @@ cor.test(cor_sif,cor_xco2)
 
 # Machine Learning
 
-### Aprendizado de Máquina - Modelo geral
+``` r
+data_erradas <- data_set |> 
+  group_by(cultura, data) |> 
+  summarize(
+    n=n(),
+    .groups = "drop"
+  ) 
+
+data_erradas_pasto <- data_erradas |> 
+  filter(cultura == "pasto",
+         n==1) |> pull(data)
+
+data_erradas_silvipastoril <- data_erradas |> 
+  filter(cultura == "silvipastoril",
+         n==1) |> pull(data)
+
+data_set_f <- data_set |>
+  filter(
+    !(cultura == "silvipastoril" & (data %in% data_erradas_silvipastoril)),
+    !(cultura == "pasto" & (data %in% data_erradas_pasto))
+  ) |> 
+  ungroup() |> 
+  mutate(
+    periodo = ifelse(data>"2018-06-16","I","II")
+    )
+
+data_set_f |> 
+  group_by(cultura,periodo, data) |> 
+  summarize(
+    fco2=sum(fco2,na.rm=TRUE),
+    .groups = "drop"
+  ) |>  
+  ggplot(aes(x=data, y=fco2, color = cultura)) + 
+  geom_line() +
+  geom_point() +
+  # facet_wrap(~cultura) + 
+  theme_bw() +
+  theme(legend.position = "top")+
+  scale_color_manual(values = c("black","red"))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-59-1.png)<!-- -->
+
+### Aprendizado de Máquina - Modelo Silvipastoril - I
 
 ``` r
-data_set_temporal <- data_set |> 
-  select(cultura, fco2:arg,tmed:inso,xco2,sif) |> 
+data_set_temporal <- data_set_f |> 
+  filter(cultura == "silvipastoril",
+         periodo == "I") |> 
+  select(fco2:arg,tmed:inso,xco2,sif) |> 
   filter(fco2 <= 12) |> 
   ungroup() |> 
   drop_na()
@@ -1030,7 +1061,7 @@ data_set_temporal <- data_set |>
  visdat::vis_miss(data_set_temporal) 
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-60-1.png)<!-- --> \##
+![](README_files/figure-gfm/unnamed-chunk-61-1.png)<!-- --> \##
 Definindo a Base de treino e teste
 
 ``` r
@@ -1051,7 +1082,7 @@ fco2_train  %>%
   labs(x="fco2 - treino", y = "Densidade")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-62-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-63-1.png)<!-- -->
 
 ``` r
 fco2_testing <- testing(fco2_initial_split)
@@ -1063,10 +1094,10 @@ fco2_testing  %>%
   labs(x="fco2 - teste", y = "Densidade")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-63-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-64-1.png)<!-- -->
 
 ``` r
-fco2_train   %>%    select(-c(data,cultura)) %>% 
+fco2_train   %>%   
   mutate(range_t = tmax-tmin) %>% 
   select(-c(tmax,tmin,umax,umin,dir_vel)) %>%   
   select(where(is.numeric)) %>%
@@ -1083,14 +1114,13 @@ fco2_train   %>%    select(-c(data,cultura)) %>%
          number.cex = 0.3) 
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-64-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-65-1.png)<!-- -->
 
 ## Preparando os dados
 
 ``` r
 fco2_recipe <- recipe(fco2 ~ ., 
-                      data = fco2_train %>% 
-            select(-data) 
+                      data = fco2_train 
 ) %>%  
   step_normalize(all_numeric_predictors())  %>% 
   step_naomit() %>%  
@@ -1101,31 +1131,31 @@ fco2_recipe <- recipe(fco2 ~ .,
   # step_poly(c(Us,Ts), degree = 2)  %>%  
   # step_dummy(all_nominal_predictors()) 
 bake(prep(fco2_recipe), new_data = NULL)
-#> # A tibble: 875 × 38
-#>    cultura           ts     us    p_h     mo       p      k     ca     mg   h_al
-#>    <fct>          <dbl>  <dbl>  <dbl>  <dbl>   <dbl>  <dbl>  <dbl>  <dbl>  <dbl>
-#>  1 silvipastoril -0.518  0.520 -1.02   0.502 -0.642   1.02  -1.23  -0.731  0.911
-#>  2 silvipastoril -1.63   1.60  -1.02   0.648 -0.176   0.163 -0.538 -0.394  0.911
-#>  3 pasto          1.17  -1.13   0.388 -0.665 -0.642  -0.921  0.856  0.614 -0.889
-#>  4 pasto          0.774 -0.740  0.788 -0.956 -0.875  -0.807  0.159  0.278 -0.974
-#>  5 pasto          0.312 -0.290  0.788 -1.10   4.25   -0.864  0.856  0.614 -1.03 
-#>  6 pasto          1.14  -1.10   1.59  -0.956  0.0575 -0.921  2.25   2.29  -1.09 
-#>  7 pasto          0.928 -0.891  0.588 -1.39   0.0575 -0.750 -0.538 -0.394 -1.03 
-#>  8 silvipastoril -1.32   1.30  -0.815  0.210 -0.176   0.334 -1.23  -1.07   1.20 
-#>  9 silvipastoril -3.24   3.18  -0.815  0.210 -0.176   0.334 -1.23  -1.07   1.20 
-#> 10 pasto          0.897 -0.861  0.788 -0.227 -0.409  -0.636  1.90   1.62  -0.889
-#> # ℹ 865 more rows
-#> # ℹ 28 more variables: sb <dbl>, ctc <dbl>, v <dbl>, ds <dbl>, macro <dbl>,
-#> #   micro <dbl>, vtp <dbl>, pla <dbl>, at <dbl>, silte <dbl>, arg <dbl>,
-#> #   tmed <dbl>, tmax <dbl>, tmin <dbl>, umed <dbl>, umax <dbl>, umin <dbl>,
-#> #   pk_pa <dbl>, rad <dbl>, eto <dbl>, velmax <dbl>, velmin <dbl>,
-#> #   dir_vel <dbl>, chuva <dbl>, inso <dbl>, xco2 <dbl>, sif <dbl>, fco2 <dbl>
+#> # A tibble: 240 × 36
+#>        ts     us     p_h      mo      p        k      ca      mg   h_al      sb
+#>     <dbl>  <dbl>   <dbl>   <dbl>  <dbl>    <dbl>   <dbl>   <dbl>  <dbl>   <dbl>
+#>  1  0.538 -0.538  0.0531  1.48    1.44   1.34     0.676  -0.362   0.147  0.537 
+#>  2  0.476 -0.476  0.0531  0.263   0.796 -0.847    0.0447 -0.362   0.147 -0.485 
+#>  3 -1.34   1.34  -0.928  -1.26   -1.13  -0.787   -1.22   -1.21    0.789 -1.35  
+#>  4  0.350 -0.350  1.03    0.263   0.153  0.00304  0.0447  0.0598  0.147  0.0483
+#>  5  0.162 -0.162 -0.928  -0.957  -1.13   0.185   -1.22   -1.63    0.147 -1.22  
+#>  6 -0.903  0.903  1.03    0.874  -0.491 -0.604    0.0447  0.0598 -0.366 -0.174 
+#>  7 -1.72   1.72   1.03   -0.0420 -1.13   2.07     0.0447  1.33   -0.879  1.47  
+#>  8  0.664 -0.664  0.0531  0.874   0.796 -0.726    0.676   0.482   0.789  0.226 
+#>  9  0.664 -0.664 -0.928  -0.652  -0.491 -0.787   -0.587  -0.362   0.789 -0.685 
+#> 10  0.162 -0.162 -0.928   0.263  -0.491 -0.422    0.0447  0.0598  0.147 -0.107 
+#> # ℹ 230 more rows
+#> # ℹ 26 more variables: ctc <dbl>, v <dbl>, ds <dbl>, macro <dbl>, micro <dbl>,
+#> #   vtp <dbl>, pla <dbl>, at <dbl>, silte <dbl>, arg <dbl>, tmed <dbl>,
+#> #   tmax <dbl>, tmin <dbl>, umed <dbl>, umax <dbl>, umin <dbl>, pk_pa <dbl>,
+#> #   rad <dbl>, eto <dbl>, velmax <dbl>, velmin <dbl>, dir_vel <dbl>,
+#> #   inso <dbl>, xco2 <dbl>, sif <dbl>, fco2 <dbl>
 ```
 
-## Reamostragem
+### Reamostragem
 
 ``` r
-fco2_resamples <- vfold_cv(fco2_train, v = 5) 
+fco2_resamples <- vfold_cv(fco2_train, v = 5)
 ```
 
 ## Random Forest
@@ -1152,10 +1182,10 @@ fco2_rf_wf <- workflow()   %>%
 
 ``` r
 grid_rf <- grid_regular(
-  min_n(range = c(2, 10)), ## tentar até 250
-  mtry(range = c(3, 10)), ## no máximo 30
+  min_n(range = c(2, 10)),
+  mtry(range = c(3, 10)), 
   trees(range = c(50, 1000)),
-  levels = c(5, 5, 5)
+  levels = c(2, 2, 2)
 )
 
 fco2_rf_tune_grid <- tune_grid(
@@ -1167,39 +1197,36 @@ fco2_rf_tune_grid <- tune_grid(
 ```
 
 ``` r
-autoplot(fco2_rf_tune_grid) + 
+autoplot(fco2_rf_tune_grid) +
   theme_bw()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-70-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-71-1.png)<!-- -->
 
 ``` r
 collect_metrics(fco2_rf_tune_grid)
-#> # A tibble: 125 × 9
-#>     mtry trees min_n .metric .estimator  mean     n std_err .config             
-#>    <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
-#>  1     3    50     2 rmse    standard   0.443     5 0.0115  Preprocessor1_Model…
-#>  2     3    50     4 rmse    standard   0.446     5 0.00959 Preprocessor1_Model…
-#>  3     3    50     6 rmse    standard   0.445     5 0.00981 Preprocessor1_Model…
-#>  4     3    50     8 rmse    standard   0.447     5 0.0117  Preprocessor1_Model…
-#>  5     3    50    10 rmse    standard   0.445     5 0.0100  Preprocessor1_Model…
-#>  6     4    50     2 rmse    standard   0.445     5 0.0129  Preprocessor1_Model…
-#>  7     4    50     4 rmse    standard   0.441     5 0.0123  Preprocessor1_Model…
-#>  8     4    50     6 rmse    standard   0.441     5 0.00971 Preprocessor1_Model…
-#>  9     4    50     8 rmse    standard   0.444     5 0.0135  Preprocessor1_Model…
-#> 10     4    50    10 rmse    standard   0.441     5 0.0105  Preprocessor1_Model…
-#> # ℹ 115 more rows
+#> # A tibble: 8 × 9
+#>    mtry trees min_n .metric .estimator  mean     n std_err .config             
+#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
+#> 1     3    50     2 rmse    standard   0.486     5  0.0265 Preprocessor1_Model1
+#> 2     3    50    10 rmse    standard   0.489     5  0.0225 Preprocessor1_Model2
+#> 3    10    50     2 rmse    standard   0.478     5  0.0261 Preprocessor1_Model3
+#> 4    10    50    10 rmse    standard   0.478     5  0.0308 Preprocessor1_Model4
+#> 5     3  1000     2 rmse    standard   0.482     5  0.0229 Preprocessor1_Model5
+#> 6     3  1000    10 rmse    standard   0.485     5  0.0242 Preprocessor1_Model6
+#> 7    10  1000     2 rmse    standard   0.470     5  0.0259 Preprocessor1_Model7
+#> 8    10  1000    10 rmse    standard   0.472     5  0.0269 Preprocessor1_Model8
 fco2_rf_tune_grid %>%
   show_best(metric = "rmse", n = 6)
 #> # A tibble: 6 × 9
-#>    mtry trees min_n .metric .estimator  mean     n std_err .config              
-#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>                
-#> 1    10  1000     8 rmse    standard   0.433     5  0.0136 Preprocessor1_Model1…
-#> 2    10   762     8 rmse    standard   0.433     5  0.0137 Preprocessor1_Model0…
-#> 3    10   525     4 rmse    standard   0.433     5  0.0142 Preprocessor1_Model0…
-#> 4    10   525    10 rmse    standard   0.433     5  0.0140 Preprocessor1_Model0…
-#> 5     8   762    10 rmse    standard   0.434     5  0.0130 Preprocessor1_Model0…
-#> 6    10   287    10 rmse    standard   0.434     5  0.0142 Preprocessor1_Model0…
+#>    mtry trees min_n .metric .estimator  mean     n std_err .config             
+#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
+#> 1    10  1000     2 rmse    standard   0.470     5  0.0259 Preprocessor1_Model7
+#> 2    10  1000    10 rmse    standard   0.472     5  0.0269 Preprocessor1_Model8
+#> 3    10    50    10 rmse    standard   0.478     5  0.0308 Preprocessor1_Model4
+#> 4    10    50     2 rmse    standard   0.478     5  0.0261 Preprocessor1_Model3
+#> 5     3  1000     2 rmse    standard   0.482     5  0.0229 Preprocessor1_Model5
+#> 6     3  1000    10 rmse    standard   0.485     5  0.0242 Preprocessor1_Model6
 ```
 
 ### Desempenho modelo final
@@ -1227,7 +1254,7 @@ fco2_test_preds %>%
   geom_abline (slope=1, linetype = "dashed", color="Red")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-72-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-73-1.png)<!-- -->
 
 ``` r
 fco2_rf_last_fit_model <-fco2_rf_last_fit$.workflow[[1]]$fit$fit
@@ -1240,7 +1267,7 @@ vip(fco2_rf_last_fit_model,
   theme_bw()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-73-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-74-1.png)<!-- -->
 
 ``` r
 features <- rownames(fco2_rf_last_fit_model$fit$importance)
@@ -1277,7 +1304,7 @@ importance_top_10 |>
   scale_fill_viridis_d()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-74-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-75-1.png)<!-- -->
 
 ``` r
 da <- fco2_test_preds %>%
@@ -1294,19 +1321,20 @@ my_mape <- Metrics::mape(da$fco2,da$.pred)*100
 vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, MAPE=my_mape)
 print(data.frame(vector_of_metrics))
 #>      vector_of_metrics
-#> r            0.6787708
-#> R2           0.4607298
-#> MSE          0.1984555
-#> RMSE         0.4454834
-#> MAE          0.3259117
-#> MAPE        25.2042723
+#> r            0.5553498
+#> R2           0.3084134
+#> MSE          0.2664307
+#> RMSE         0.5161693
+#> MAE          0.3734033
+#> MAPE        25.1016494
 ```
 
-### Aprendizado de Máquina - Modelo Silvipastoril
+### Aprendizado de Máquina - Modelo Silvipastoril - II
 
 ``` r
-data_set_temporal <- data_set |> 
-  filter(cultura == "silvipastoril") |> 
+data_set_temporal <- data_set_f |> 
+  filter(cultura == "silvipastoril",
+         periodo == "II") |> 
   select(fco2:arg,tmed:inso,xco2,sif) |> 
   filter(fco2 <= 12) |> 
   ungroup() |> 
@@ -1317,7 +1345,7 @@ data_set_temporal <- data_set |>
  visdat::vis_miss(data_set_temporal) 
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-77-1.png)<!-- --> \##
+![](README_files/figure-gfm/unnamed-chunk-78-1.png)<!-- --> \##
 Definindo a Base de treino e teste
 
 ``` r
@@ -1338,7 +1366,7 @@ fco2_train  %>%
   labs(x="fco2 - treino", y = "Densidade")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-79-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-80-1.png)<!-- -->
 
 ``` r
 fco2_testing <- testing(fco2_initial_split)
@@ -1350,10 +1378,10 @@ fco2_testing  %>%
   labs(x="fco2 - teste", y = "Densidade")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-80-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-81-1.png)<!-- -->
 
 ``` r
-fco2_train   %>%    select(-c(data,cultura)) %>% 
+fco2_train   %>%   
   mutate(range_t = tmax-tmin) %>% 
   select(-c(tmax,tmin,umax,umin,dir_vel)) %>%   
   select(where(is.numeric)) %>%
@@ -1370,19 +1398,13 @@ fco2_train   %>%    select(-c(data,cultura)) %>%
          number.cex = 0.3) 
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-81-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-82-1.png)<!-- -->
 
 ## Preparando os dados
 
 ``` r
-fco2_train$cultura |> table()
-#> 
-#> silvipastoril 
-#>           480
-
 fco2_recipe <- recipe(fco2 ~ ., 
-                      data = fco2_train %>% 
-            select(-c(data,cultura,chuva) )
+                      data = fco2_train 
 ) %>%  
   step_normalize(all_numeric_predictors())  %>% 
   step_naomit() %>%  
@@ -1393,25 +1415,31 @@ fco2_recipe <- recipe(fco2 ~ .,
   # step_poly(c(Us,Ts), degree = 2)  %>%  
   # step_dummy(all_nominal_predictors()) 
 bake(prep(fco2_recipe), new_data = NULL)
-#> # A tibble: 480 × 36
-#>         ts      us     p_h     mo      p      k      ca      mg   h_al      sb
-#>      <dbl>   <dbl>   <dbl>  <dbl>  <dbl>  <dbl>   <dbl>   <dbl>  <dbl>   <dbl>
-#>  1  1.45   -1.45   -0.902   0.294 -0.442 -0.374  0.0872  0.0821  0.114 -0.0510
-#>  2  0.165  -0.165  -0.902  -1.19  -0.442 -0.787 -1.20   -0.351   0.716 -0.889 
-#>  3 -0.309   0.309  -0.902   1.19   0.240 -0.650  0.0872  0.0821  0.114 -0.144 
-#>  4 -0.342   0.342  -0.902  -1.19  -1.13  -0.787 -1.20   -1.22    0.716 -1.35  
-#>  5  1.86   -1.86    0.0910  0.294  0.923 -0.856  0.0872 -0.351   0.114 -0.447 
-#>  6  0.0299 -0.0299 -0.902  -0.301 -1.13  -0.512 -0.556  -0.351   0.114 -0.563 
-#>  7  0.267  -0.267   1.08    0.294  0.240  0.383  0.731   0.948   0.114  0.904 
-#>  8 -0.342   0.342   2.08    0.294 -0.442  2.24   1.37    2.25   -0.850  2.46  
-#>  9 -0.850   0.850   1.08   -0.598  0.240  0.383 -1.20   -0.784  -5.18  -0.726 
-#> 10  0.978  -0.978   0.0910 -1.19  -0.442  0.865 -0.556  -0.351  -0.850 -0.0976
-#> # ℹ 470 more rows
+#> # A tibble: 240 × 36
+#>        ts     us     p_h     mo      p       k      ca      mg   h_al     sb
+#>     <dbl>  <dbl>   <dbl>  <dbl>  <dbl>   <dbl>   <dbl>   <dbl>  <dbl>  <dbl>
+#>  1 -1.39   1.39   0.0569 -0.938  0.237 -0.603  -1.25   -1.18    0.135 -1.28 
+#>  2 -1.08   1.08   0.0569  0.890  3.79   0.634   2.77    0.492   0.776  1.43 
+#>  3 -0.915  0.915  0.0569 -0.329 -0.474  0.569   0.0921  0.0732 -0.378  0.271
+#>  4 -0.925  0.925  2.01    0.890  2.37   0.959   3.44    1.75   -0.890  2.46 
+#>  5 -0.718  0.718 -0.919  -0.938 -1.18   0.243  -1.25   -1.60    0.135 -1.21 
+#>  6 -0.634  0.634  0.0569  0.281 -1.18   1.02   -0.578  -0.764  -0.378 -0.254
+#>  7 -1.08   1.08  -0.919  -1.55  -0.474 -0.148  -0.578  -0.345   0.776 -0.437
+#>  8  0.969 -0.969  1.03   -1.85   0.237  0.438   1.43    2.17   -0.890  1.82 
+#>  9 -1.24   1.24   0.0569  0.281 -0.474 -0.408   0.0921 -0.345   0.135 -0.300
+#> 10  0.547 -0.547 -0.919  -1.24  -0.474 -0.0174 -1.25   -0.764   0.776 -0.848
+#> # ℹ 230 more rows
 #> # ℹ 26 more variables: ctc <dbl>, v <dbl>, ds <dbl>, macro <dbl>, micro <dbl>,
 #> #   vtp <dbl>, pla <dbl>, at <dbl>, silte <dbl>, arg <dbl>, tmed <dbl>,
 #> #   tmax <dbl>, tmin <dbl>, umed <dbl>, umax <dbl>, umin <dbl>, pk_pa <dbl>,
 #> #   rad <dbl>, eto <dbl>, velmax <dbl>, velmin <dbl>, dir_vel <dbl>,
 #> #   inso <dbl>, xco2 <dbl>, sif <dbl>, fco2 <dbl>
+```
+
+### Reamostragem
+
+``` r
+fco2_resamples <- vfold_cv(fco2_train, v = 5)
 ```
 
 ## Random Forest
@@ -1441,7 +1469,7 @@ grid_rf <- grid_regular(
   min_n(range = c(2, 10)),
   mtry(range = c(3, 10)), 
   trees(range = c(50, 1000)),
-  levels = c(5, 5, 5)
+  levels = c(2, 2, 2)
 )
 
 fco2_rf_tune_grid <- tune_grid(
@@ -1457,35 +1485,32 @@ autoplot(fco2_rf_tune_grid) +
   theme_bw()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-86-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-88-1.png)<!-- -->
 
 ``` r
 collect_metrics(fco2_rf_tune_grid)
-#> # A tibble: 125 × 9
-#>     mtry trees min_n .metric .estimator  mean     n std_err .config             
-#>    <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
-#>  1     3    50     2 rmse    standard   0.447     5  0.0120 Preprocessor1_Model…
-#>  2     3    50     4 rmse    standard   0.446     5  0.0102 Preprocessor1_Model…
-#>  3     3    50     6 rmse    standard   0.448     5  0.0132 Preprocessor1_Model…
-#>  4     3    50     8 rmse    standard   0.444     5  0.0115 Preprocessor1_Model…
-#>  5     3    50    10 rmse    standard   0.447     5  0.0120 Preprocessor1_Model…
-#>  6     4    50     2 rmse    standard   0.443     5  0.0115 Preprocessor1_Model…
-#>  7     4    50     4 rmse    standard   0.438     5  0.0111 Preprocessor1_Model…
-#>  8     4    50     6 rmse    standard   0.450     5  0.0115 Preprocessor1_Model…
-#>  9     4    50     8 rmse    standard   0.442     5  0.0120 Preprocessor1_Model…
-#> 10     4    50    10 rmse    standard   0.446     5  0.0130 Preprocessor1_Model…
-#> # ℹ 115 more rows
+#> # A tibble: 8 × 9
+#>    mtry trees min_n .metric .estimator  mean     n std_err .config             
+#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
+#> 1     3    50     2 rmse    standard   0.419     5  0.0206 Preprocessor1_Model1
+#> 2     3    50    10 rmse    standard   0.428     5  0.0207 Preprocessor1_Model2
+#> 3    10    50     2 rmse    standard   0.407     5  0.0233 Preprocessor1_Model3
+#> 4    10    50    10 rmse    standard   0.409     5  0.0229 Preprocessor1_Model4
+#> 5     3  1000     2 rmse    standard   0.418     5  0.0187 Preprocessor1_Model5
+#> 6     3  1000    10 rmse    standard   0.432     5  0.0193 Preprocessor1_Model6
+#> 7    10  1000     2 rmse    standard   0.404     5  0.0218 Preprocessor1_Model7
+#> 8    10  1000    10 rmse    standard   0.409     5  0.0215 Preprocessor1_Model8
 fco2_rf_tune_grid %>%
   show_best(metric = "rmse", n = 6)
 #> # A tibble: 6 × 9
-#>    mtry trees min_n .metric .estimator  mean     n std_err .config              
-#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>                
-#> 1     8   525     8 rmse    standard   0.431     5  0.0129 Preprocessor1_Model0…
-#> 2    10   287    10 rmse    standard   0.432     5  0.0140 Preprocessor1_Model0…
-#> 3    10    50     8 rmse    standard   0.433     5  0.0141 Preprocessor1_Model0…
-#> 4    10   762     6 rmse    standard   0.433     5  0.0139 Preprocessor1_Model0…
-#> 5     8   287     8 rmse    standard   0.433     5  0.0131 Preprocessor1_Model0…
-#> 6     8   525     2 rmse    standard   0.433     5  0.0130 Preprocessor1_Model0…
+#>    mtry trees min_n .metric .estimator  mean     n std_err .config             
+#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
+#> 1    10  1000     2 rmse    standard   0.404     5  0.0218 Preprocessor1_Model7
+#> 2    10    50     2 rmse    standard   0.407     5  0.0233 Preprocessor1_Model3
+#> 3    10  1000    10 rmse    standard   0.409     5  0.0215 Preprocessor1_Model8
+#> 4    10    50    10 rmse    standard   0.409     5  0.0229 Preprocessor1_Model4
+#> 5     3  1000     2 rmse    standard   0.418     5  0.0187 Preprocessor1_Model5
+#> 6     3    50     2 rmse    standard   0.419     5  0.0206 Preprocessor1_Model1
 ```
 
 ### Desempenho modelo final
@@ -1513,7 +1538,7 @@ fco2_test_preds %>%
   geom_abline (slope=1, linetype = "dashed", color="Red")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-88-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-90-1.png)<!-- -->
 
 ``` r
 fco2_rf_last_fit_model <-fco2_rf_last_fit$.workflow[[1]]$fit$fit
@@ -1526,7 +1551,7 @@ vip(fco2_rf_last_fit_model,
   theme_bw()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-89-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-91-1.png)<!-- -->
 
 ``` r
 features <- rownames(fco2_rf_last_fit_model$fit$importance)
@@ -1536,6 +1561,12 @@ importance_top_10 <- fco2_rf_last_fit_model$fit$importance |>
   arrange(desc(IncNodePurity)) |> 
   relocate(feature) |> 
   slice(1:10)
+
+atr_fisicos <- features[c(14:17,19:21)]
+atr_quimicos <- features[c(4:13)]
+atr_dinamicos <- features[c(2,3,18)]
+atr_climaticos <- features[c(22:34)]
+atr_orbitais <- features[c(35:36)]
 
 importance_top_10 |> 
   arrange(IncNodePurity) |> 
@@ -1557,7 +1588,7 @@ importance_top_10 |>
   scale_fill_viridis_d()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-90-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-92-1.png)<!-- -->
 
 ``` r
 da <- fco2_test_preds %>%
@@ -1574,19 +1605,20 @@ my_mape <- Metrics::mape(da$fco2,da$.pred)*100
 vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, MAPE=my_mape)
 print(data.frame(vector_of_metrics))
 #>      vector_of_metrics
-#> r            0.6917688
-#> R2           0.4785440
-#> MSE          0.1649561
-#> RMSE         0.4061479
-#> MAE          0.3041899
-#> MAPE        19.8336231
+#> r            0.4740541
+#> R2           0.2247273
+#> MSE          0.1577053
+#> RMSE         0.3971212
+#> MAE          0.2908431
+#> MAPE        17.9694216
 ```
 
-### Aprendizado de Máquina - Modelo pasto
+### Aprendizado de Máquina - Modelo Pasto - I
 
 ``` r
-data_set_temporal <- data_set |> 
-  filter(cultura == "pasto") |> 
+data_set_temporal <- data_set_f |> 
+  filter(cultura == "pasto",
+         periodo == "I") |> 
   select(fco2:arg,tmed:inso,xco2,sif) |> 
   filter(fco2 <= 12) |> 
   ungroup() |> 
@@ -1594,10 +1626,10 @@ data_set_temporal <- data_set |>
 ```
 
 ``` r
-visdat::vis_miss(data_set_temporal) 
+ visdat::vis_miss(data_set_temporal) 
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-93-1.png)<!-- --> \##
+![](README_files/figure-gfm/unnamed-chunk-95-1.png)<!-- --> \##
 Definindo a Base de treino e teste
 
 ``` r
@@ -1618,7 +1650,7 @@ fco2_train  %>%
   labs(x="fco2 - treino", y = "Densidade")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-95-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-97-1.png)<!-- -->
 
 ``` r
 fco2_testing <- testing(fco2_initial_split)
@@ -1630,10 +1662,10 @@ fco2_testing  %>%
   labs(x="fco2 - teste", y = "Densidade")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-96-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-98-1.png)<!-- -->
 
 ``` r
-fco2_train   %>%    select(-c(data,cultura)) %>% 
+fco2_train   %>%   
   mutate(range_t = tmax-tmin) %>% 
   select(-c(tmax,tmin,umax,umin,dir_vel)) %>%   
   select(where(is.numeric)) %>%
@@ -1650,14 +1682,13 @@ fco2_train   %>%    select(-c(data,cultura)) %>%
          number.cex = 0.3) 
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-97-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-99-1.png)<!-- -->
 
 ## Preparando os dados
 
 ``` r
 fco2_recipe <- recipe(fco2 ~ ., 
-                      data = fco2_train %>% 
-            select(-c(data,cultura,chuva)) 
+                      data = fco2_train 
 ) %>%  
   step_normalize(all_numeric_predictors())  %>% 
   step_naomit() %>%  
@@ -1668,25 +1699,31 @@ fco2_recipe <- recipe(fco2 ~ .,
   # step_poly(c(Us,Ts), degree = 2)  %>%  
   # step_dummy(all_nominal_predictors()) 
 bake(prep(fco2_recipe), new_data = NULL)
-#> # A tibble: 394 × 36
-#>         ts      us     p_h     mo       p        k     ca     mg    h_al     sb
-#>      <dbl>   <dbl>   <dbl>  <dbl>   <dbl>    <dbl>  <dbl>  <dbl>   <dbl>  <dbl>
-#>  1  1.25   -0.997   1.45   -0.692 -0.898  -0.673    1.24   0.775 -1.11    0.993
-#>  2 -0.0707  0.139   0.699   0.850 -0.197   0.00303  1.59   1.80  -0.569   1.78 
-#>  3 -0.0108  0.0871  1.45    0.464  2.26   -0.448    1.24   0.775 -0.569   1.01 
-#>  4  2.03   -1.67    2.97    0.464 -0.548   0.454    3.02   2.48  -2.20    2.90 
-#>  5  3.47   -2.91    0.699  -0.692 -0.898   4.06    -0.893 -0.247 -1.11   -0.261
-#>  6 -0.251   0.294  -0.0578 -0.306 -0.0220 -0.448   -0.538 -0.927 -0.569  -0.807
-#>  7  0.900  -0.697  -0.436  -1.08  -0.898  -0.673   -1.25  -0.587 -0.0250 -1.01 
-#>  8 -0.970   0.913  -0.436   2.01  -0.548   0.679    1.24   1.11   1.34    1.28 
-#>  9  0.589  -0.429   0.320   2.39   1.20   -0.222    0.883  2.48  -0.569   1.76 
-#> 10  0.589  -0.429   0.320   1.62   0.153   0.00303  0.173  0.775 -0.569   0.502
-#> # ℹ 384 more rows
+#> # A tibble: 193 × 36
+#>        ts     us     p_h     mo      p      k     ca     mg    h_al     sb
+#>     <dbl>  <dbl>   <dbl>  <dbl>  <dbl>  <dbl>  <dbl>  <dbl>   <dbl>  <dbl>
+#>  1  0.757 -0.757  0.254   0.876  1.17  -0.617  0.138  0.783 -0.518   0.441
+#>  2  0.512 -0.512  1.41   -0.651 -0.835 -0.617  1.22   0.783 -1.08    1.00 
+#>  3  1.33  -1.33  -2.05   -0.651 -0.835 -0.380 -1.31  -1.66   0.0480 -1.59 
+#>  4 -0.305  0.305 -0.515   2.02  -0.501  0.801  1.22   1.13   1.46    1.30 
+#>  5 -1.12   1.12  -0.131   2.40   0.501  0.801  0.499  0.434  0.0480  0.553
+#>  6 -0.469  0.469 -1.28   -0.269 -0.835 -0.617 -0.945 -0.613  0.0480 -0.865
+#>  7 -0.959  0.959 -0.0153 -0.174 -0.835  0.919 -0.584 -0.177 -0.235  -0.324
+#>  8  1.08  -1.08   1.52    0.590  0.960 -0.144  1.31   1.13  -1.01    1.27 
+#>  9 -0.305  0.305 -0.131   0.112  0.668 -0.380 -0.945 -0.613 -0.518  -0.846
+#> 10  0.512 -0.512  1.02    0.112 -0.167 -0.380  1.58   1.83  -0.518   1.77 
+#> # ℹ 183 more rows
 #> # ℹ 26 more variables: ctc <dbl>, v <dbl>, ds <dbl>, macro <dbl>, micro <dbl>,
 #> #   vtp <dbl>, pla <dbl>, at <dbl>, silte <dbl>, arg <dbl>, tmed <dbl>,
 #> #   tmax <dbl>, tmin <dbl>, umed <dbl>, umax <dbl>, umin <dbl>, pk_pa <dbl>,
 #> #   rad <dbl>, eto <dbl>, velmax <dbl>, velmin <dbl>, dir_vel <dbl>,
 #> #   inso <dbl>, xco2 <dbl>, sif <dbl>, fco2 <dbl>
+```
+
+### Reamostragem
+
+``` r
+fco2_resamples <- vfold_cv(fco2_train, v = 5)
 ```
 
 ## Random Forest
@@ -1713,10 +1750,10 @@ fco2_rf_wf <- workflow()   %>%
 
 ``` r
 grid_rf <- grid_regular(
-  min_n(range = c(2, 20)),
-  mtry(range = c(3, 25)), 
+  min_n(range = c(2, 10)),
+  mtry(range = c(3, 10)), 
   trees(range = c(50, 1000)),
-  levels = c(5, 5, 5)
+  levels = c(2, 2, 2)
 )
 
 fco2_rf_tune_grid <- tune_grid(
@@ -1728,38 +1765,36 @@ fco2_rf_tune_grid <- tune_grid(
 ```
 
 ``` r
-autoplot(fco2_rf_tune_grid)
+autoplot(fco2_rf_tune_grid) +
+  theme_bw()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-102-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-105-1.png)<!-- -->
 
 ``` r
 collect_metrics(fco2_rf_tune_grid)
-#> # A tibble: 125 × 9
-#>     mtry trees min_n .metric .estimator  mean     n std_err .config             
-#>    <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
-#>  1     3    50     2 rmse    standard   0.445     5  0.0141 Preprocessor1_Model…
-#>  2     3    50     6 rmse    standard   0.441     5  0.0124 Preprocessor1_Model…
-#>  3     3    50    11 rmse    standard   0.444     5  0.0115 Preprocessor1_Model…
-#>  4     3    50    15 rmse    standard   0.445     5  0.0114 Preprocessor1_Model…
-#>  5     3    50    20 rmse    standard   0.450     5  0.0119 Preprocessor1_Model…
-#>  6     8    50     2 rmse    standard   0.438     5  0.0125 Preprocessor1_Model…
-#>  7     8    50     6 rmse    standard   0.440     5  0.0154 Preprocessor1_Model…
-#>  8     8    50    11 rmse    standard   0.437     5  0.0135 Preprocessor1_Model…
-#>  9     8    50    15 rmse    standard   0.439     5  0.0125 Preprocessor1_Model…
-#> 10     8    50    20 rmse    standard   0.440     5  0.0120 Preprocessor1_Model…
-#> # ℹ 115 more rows
+#> # A tibble: 8 × 9
+#>    mtry trees min_n .metric .estimator  mean     n std_err .config             
+#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
+#> 1     3    50     2 rmse    standard   0.319     5  0.0390 Preprocessor1_Model1
+#> 2     3    50    10 rmse    standard   0.313     5  0.0370 Preprocessor1_Model2
+#> 3    10    50     2 rmse    standard   0.328     5  0.0364 Preprocessor1_Model3
+#> 4    10    50    10 rmse    standard   0.317     5  0.0378 Preprocessor1_Model4
+#> 5     3  1000     2 rmse    standard   0.313     5  0.0391 Preprocessor1_Model5
+#> 6     3  1000    10 rmse    standard   0.311     5  0.0389 Preprocessor1_Model6
+#> 7    10  1000     2 rmse    standard   0.318     5  0.0379 Preprocessor1_Model7
+#> 8    10  1000    10 rmse    standard   0.317     5  0.0381 Preprocessor1_Model8
 fco2_rf_tune_grid %>%
   show_best(metric = "rmse", n = 6)
 #> # A tibble: 6 × 9
-#>    mtry trees min_n .metric .estimator  mean     n std_err .config              
-#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>                
-#> 1    14   287    15 rmse    standard   0.432     5  0.0137 Preprocessor1_Model0…
-#> 2    14   762    11 rmse    standard   0.432     5  0.0144 Preprocessor1_Model0…
-#> 3    14   287    11 rmse    standard   0.433     5  0.0142 Preprocessor1_Model0…
-#> 4    19   762    11 rmse    standard   0.433     5  0.0149 Preprocessor1_Model0…
-#> 5    14   525    15 rmse    standard   0.433     5  0.0143 Preprocessor1_Model0…
-#> 6    25   525    11 rmse    standard   0.433     5  0.0156 Preprocessor1_Model0…
+#>    mtry trees min_n .metric .estimator  mean     n std_err .config             
+#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
+#> 1     3  1000    10 rmse    standard   0.311     5  0.0389 Preprocessor1_Model6
+#> 2     3  1000     2 rmse    standard   0.313     5  0.0391 Preprocessor1_Model5
+#> 3     3    50    10 rmse    standard   0.313     5  0.0370 Preprocessor1_Model2
+#> 4    10    50    10 rmse    standard   0.317     5  0.0378 Preprocessor1_Model4
+#> 5    10  1000    10 rmse    standard   0.317     5  0.0381 Preprocessor1_Model8
+#> 6    10  1000     2 rmse    standard   0.318     5  0.0379 Preprocessor1_Model7
 ```
 
 ### Desempenho modelo final
@@ -1787,7 +1822,7 @@ fco2_test_preds %>%
   geom_abline (slope=1, linetype = "dashed", color="Red")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-104-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-107-1.png)<!-- -->
 
 ``` r
 fco2_rf_last_fit_model <-fco2_rf_last_fit$.workflow[[1]]$fit$fit
@@ -1800,7 +1835,7 @@ vip(fco2_rf_last_fit_model,
   theme_bw()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-105-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-108-1.png)<!-- -->
 
 ``` r
 features <- rownames(fco2_rf_last_fit_model$fit$importance)
@@ -1810,6 +1845,12 @@ importance_top_10 <- fco2_rf_last_fit_model$fit$importance |>
   arrange(desc(IncNodePurity)) |> 
   relocate(feature) |> 
   slice(1:10)
+
+atr_fisicos <- features[c(14:17,19:21)]
+atr_quimicos <- features[c(4:13)]
+atr_dinamicos <- features[c(2,3,18)]
+atr_climaticos <- features[c(22:34)]
+atr_orbitais <- features[c(35:36)]
 
 importance_top_10 |> 
   arrange(IncNodePurity) |> 
@@ -1831,7 +1872,7 @@ importance_top_10 |>
   scale_fill_viridis_d()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-106-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-109-1.png)<!-- -->
 
 ``` r
 da <- fco2_test_preds %>%
@@ -1848,10 +1889,294 @@ my_mape <- Metrics::mape(da$fco2,da$.pred)*100
 vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, MAPE=my_mape)
 print(data.frame(vector_of_metrics))
 #>      vector_of_metrics
-#> r            0.5298310
-#> R2           0.2807208
-#> MSE          0.2053965
-#> RMSE         0.4532069
-#> MAE          0.3089544
-#> MAPE        24.2444783
+#> r            0.1892028
+#> R2           0.0357977
+#> MSE          0.1196771
+#> RMSE         0.3459439
+#> MAE          0.2342774
+#> MAPE        27.4500524
+```
+
+### Aprendizado de Máquina - Modelo Pasto - II
+
+``` r
+data_set_temporal <- data_set_f |> 
+  filter(cultura == "pasto",
+         periodo == "II") |> 
+  select(fco2:arg,tmed:inso,xco2,sif) |> 
+  filter(fco2 <= 12) |> 
+  ungroup() |> 
+  drop_na()
+```
+
+``` r
+ visdat::vis_miss(data_set_temporal) 
+```
+
+![](README_files/figure-gfm/unnamed-chunk-112-1.png)<!-- --> \##
+Definindo a Base de treino e teste
+
+``` r
+data_set_ml <- data_set_temporal %>% #<-------
+  drop_na()
+fco2_initial_split <- initial_split(data_set_ml, prop = 0.70)
+```
+
+``` r
+fco2_train <- training(fco2_initial_split)
+# fco2_test <- testing(fco2_initial_split)
+# visdat::vis_miss(fco2_test)
+fco2_train  %>% 
+  ggplot(aes(x=fco2, y=..density..))+
+  geom_histogram(bins = 30, color="black",  fill="lightgray")+
+  geom_density(alpha=.05,fill="red")+
+  theme_bw() +
+  labs(x="fco2 - treino", y = "Densidade")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-114-1.png)<!-- -->
+
+``` r
+fco2_testing <- testing(fco2_initial_split)
+fco2_testing  %>% 
+  ggplot(aes(x=fco2, y=..density..))+
+  geom_histogram(bins = 30, color="black",  fill="lightgray")+
+  geom_density(alpha=.05,fill="blue")+
+  theme_bw() +
+  labs(x="fco2 - teste", y = "Densidade")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-115-1.png)<!-- -->
+
+``` r
+fco2_train   %>%   
+  mutate(range_t = tmax-tmin) %>% 
+  select(-c(tmax,tmin,umax,umin,dir_vel)) %>%   
+  select(where(is.numeric)) %>%
+  drop_na() %>% 
+  cor()  %>%  
+  corrplot::corrplot(method = "color",
+         outline = T,,
+         addgrid.col = "darkgray",cl.pos = "r", tl.col = "black",
+         tl.cex = 1, cl.cex = 1, type = "upper", bg="azure2",
+         diag = FALSE,
+         addCoef.col = "black",
+         cl.ratio = 0.2,
+         cl.length = 5,
+         number.cex = 0.3) 
+```
+
+![](README_files/figure-gfm/unnamed-chunk-116-1.png)<!-- -->
+
+## Preparando os dados
+
+``` r
+fco2_recipe <- recipe(fco2 ~ ., 
+                      data = fco2_train 
+) %>%  
+  step_normalize(all_numeric_predictors())  %>% 
+  step_naomit() %>%  
+  step_novel(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>%
+  step_naomit(c(ts, us)) %>% 
+  step_impute_median(where(is.numeric)) # %>%  inputação da mediana nos numéricos
+  # step_poly(c(Us,Ts), degree = 2)  %>%  
+  # step_dummy(all_nominal_predictors()) 
+bake(prep(fco2_recipe), new_data = NULL)
+#> # A tibble: 193 × 36
+#>         ts      us     p_h      mo      p       k     ca      mg    h_al      sb
+#>      <dbl>   <dbl>   <dbl>   <dbl>  <dbl>   <dbl>  <dbl>   <dbl>   <dbl>   <dbl>
+#>  1 -0.842   0.843  -0.0961  0.796  -0.912 -0.655   0.169  0.0207 -0.542   0.0473
+#>  2 -0.0761  0.0797 -0.508  -0.765   1.63   0.0764 -0.940 -0.673   0.0605 -0.853 
+#>  3 -0.320   0.323  -0.0961 -1.16   -0.730  0.564  -0.940  0.368  -0.542  -0.240 
+#>  4  0.608  -0.603  -0.508   0.0152  0.362 -0.655  -1.31  -0.673   0.0605 -1.10  
+#>  5  0.550  -0.545  -0.508  -1.16    2.18   0.564  -0.940 -0.673   0.664  -0.815 
+#>  6 -0.0761  0.0797 -1.74    0.405   1.27  -0.411   1.28   1.76    0.664   1.60  
+#>  7  1.54   -1.53    0.0276 -0.278  -0.912  0.929  -0.571 -0.240  -0.241  -0.355 
+#>  8  1.83   -1.82    1.14    0.405  -0.548 -0.655   0.538 -0.673  -1.15   -0.144 
+#>  9 -1.36    1.36    0.316  -0.375  -0.912  3.97   -0.201  0.368  -0.542   0.411 
+#> 10  0.202  -0.198   0.316   2.36    1.27  -0.167   0.908  2.45   -0.542   1.81  
+#> # ℹ 183 more rows
+#> # ℹ 26 more variables: ctc <dbl>, v <dbl>, ds <dbl>, macro <dbl>, micro <dbl>,
+#> #   vtp <dbl>, pla <dbl>, at <dbl>, silte <dbl>, arg <dbl>, tmed <dbl>,
+#> #   tmax <dbl>, tmin <dbl>, umed <dbl>, umax <dbl>, umin <dbl>, pk_pa <dbl>,
+#> #   rad <dbl>, eto <dbl>, velmax <dbl>, velmin <dbl>, dir_vel <dbl>,
+#> #   inso <dbl>, xco2 <dbl>, sif <dbl>, fco2 <dbl>
+```
+
+### Reamostragem
+
+``` r
+fco2_resamples <- vfold_cv(fco2_train, v = 5)
+```
+
+## Random Forest
+
+``` r
+fco2_rf_model <- rand_forest(
+  min_n = tune(),
+  mtry = tune(),
+  trees = tune()
+)   %>%  
+  set_mode("regression")  %>% 
+  set_engine("randomForest")
+```
+
+### Workflow
+
+``` r
+fco2_rf_wf <- workflow()   %>%  
+  add_model(fco2_rf_model) %>%  
+  add_recipe(fco2_recipe)
+```
+
+### Tune
+
+``` r
+grid_rf <- grid_regular(
+  min_n(range = c(2, 10)),
+  mtry(range = c(3, 10)), 
+  trees(range = c(50, 1000)),
+  levels = c(2, 2, 2)
+)
+
+fco2_rf_tune_grid <- tune_grid(
+ fco2_rf_wf,
+  resamples = fco2_resamples,
+  grid = grid_rf,
+  metrics = metric_set(rmse)
+)
+```
+
+``` r
+autoplot(fco2_rf_tune_grid) +
+  theme_bw()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-122-1.png)<!-- -->
+
+``` r
+collect_metrics(fco2_rf_tune_grid)
+#> # A tibble: 8 × 9
+#>    mtry trees min_n .metric .estimator  mean     n std_err .config             
+#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
+#> 1     3    50     2 rmse    standard   0.549     5  0.0373 Preprocessor1_Model1
+#> 2     3    50    10 rmse    standard   0.547     5  0.0374 Preprocessor1_Model2
+#> 3    10    50     2 rmse    standard   0.573     5  0.0418 Preprocessor1_Model3
+#> 4    10    50    10 rmse    standard   0.558     5  0.0396 Preprocessor1_Model4
+#> 5     3  1000     2 rmse    standard   0.542     5  0.0392 Preprocessor1_Model5
+#> 6     3  1000    10 rmse    standard   0.537     5  0.0367 Preprocessor1_Model6
+#> 7    10  1000     2 rmse    standard   0.562     5  0.0443 Preprocessor1_Model7
+#> 8    10  1000    10 rmse    standard   0.557     5  0.0428 Preprocessor1_Model8
+fco2_rf_tune_grid %>%
+  show_best(metric = "rmse", n = 6)
+#> # A tibble: 6 × 9
+#>    mtry trees min_n .metric .estimator  mean     n std_err .config             
+#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
+#> 1     3  1000    10 rmse    standard   0.537     5  0.0367 Preprocessor1_Model6
+#> 2     3  1000     2 rmse    standard   0.542     5  0.0392 Preprocessor1_Model5
+#> 3     3    50    10 rmse    standard   0.547     5  0.0374 Preprocessor1_Model2
+#> 4     3    50     2 rmse    standard   0.549     5  0.0373 Preprocessor1_Model1
+#> 5    10  1000    10 rmse    standard   0.557     5  0.0428 Preprocessor1_Model8
+#> 6    10    50    10 rmse    standard   0.558     5  0.0396 Preprocessor1_Model4
+```
+
+### Desempenho modelo final
+
+``` r
+fco2_rf_best_params <- select_best(fco2_rf_tune_grid, metric = "rmse")
+fco2_rf_wf <- fco2_rf_wf %>%
+  finalize_workflow(fco2_rf_best_params)
+fco2_rf_last_fit <- last_fit(fco2_rf_wf, fco2_initial_split)
+
+## Criando os preditos
+fco2_test_preds <- bind_rows(
+  collect_predictions(fco2_rf_last_fit)  %>%
+    mutate(modelo = "rf"))
+
+fco2_test <- testing(fco2_initial_split)
+
+fco2_test_preds %>%
+  ggplot(aes(x=.pred, y=fco2)) +
+  geom_point()+
+  theme_bw() +
+  geom_smooth(method = "lm") +
+  stat_regline_equation(ggplot2::aes(
+  label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~"))) +
+  geom_abline (slope=1, linetype = "dashed", color="Red")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-124-1.png)<!-- -->
+
+``` r
+fco2_rf_last_fit_model <-fco2_rf_last_fit$.workflow[[1]]$fit$fit
+vip(fco2_rf_last_fit_model,
+    aesthetics = list(color = "black", fill = "orange")) +
+    theme(axis.text.y=element_text(size=rel(1.5)),
+          axis.text.x=element_text(size=rel(1.5)),
+          axis.title.x=element_text(size=rel(1.5))
+          ) +
+  theme_bw()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-125-1.png)<!-- -->
+
+``` r
+features <- rownames(fco2_rf_last_fit_model$fit$importance)
+importance_top_10 <- fco2_rf_last_fit_model$fit$importance |> 
+  as_tibble() |> 
+  add_column(feature = features) |> 
+  arrange(desc(IncNodePurity)) |> 
+  relocate(feature) |> 
+  slice(1:10)
+
+atr_fisicos <- features[c(14:17,19:21)]
+atr_quimicos <- features[c(4:13)]
+atr_dinamicos <- features[c(2,3,18)]
+atr_climaticos <- features[c(22:34)]
+atr_orbitais <- features[c(35:36)]
+
+importance_top_10 |> 
+  arrange(IncNodePurity) |> 
+  mutate(feature_type = case_when(
+    feature %in% atr_fisicos   ~ "físicos",
+    feature %in% atr_quimicos  ~ "químicos",
+    feature %in% atr_dinamicos ~ "dinâmicos",
+    feature %in% atr_climaticos ~ "climáticos",
+    feature %in% atr_orbitais  ~ "orbitais",
+    TRUE                        ~ "outro"
+  ),
+  feature = feature |> fct_reorder(IncNodePurity)) |> 
+  ggplot(aes(x=IncNodePurity, y=feature, fill = feature_type)) +
+  geom_col(color="black") +
+  theme_bw()+
+  labs(x = "Importância",y="",
+       fill="Grupo") +
+  theme(legend.position = "top") +
+  scale_fill_viridis_d()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-126-1.png)<!-- -->
+
+``` r
+da <- fco2_test_preds %>%
+  filter(fco2 > 0, .pred>0 )
+
+my_r <- cor(da$fco2,da$.pred)
+my_r2 <- my_r*my_r
+my_mse <- Metrics::mse(da$fco2,da$.pred)
+my_rmse <- Metrics::rmse(da$fco2,
+                         da$.pred)
+my_mae <- Metrics::mae(da$fco2,da$.pred)
+my_mape <- Metrics::mape(da$fco2,da$.pred)*100
+
+vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, MAPE=my_mape)
+print(data.frame(vector_of_metrics))
+#>      vector_of_metrics
+#> r           0.30325372
+#> R2          0.09196282
+#> MSE         0.22906829
+#> RMSE        0.47861079
+#> MAE         0.36925039
+#> MAPE       27.96388052
 ```

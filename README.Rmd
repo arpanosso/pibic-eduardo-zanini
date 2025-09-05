@@ -450,12 +450,10 @@ data_set_nest <- data_set %>%
   select(id,cultura,x,y,fco2,xco2,sif) %>% 
   #rename(dia = data) %>% 
   group_by(cultura, id) %>% 
-  nest(fco2:sif) 
+  nest(data = fco2:sif) 
 ```
 
 ```{r}
-data_set_nest$data[1]
-
 get_corr_xco2 <- function(df){
   fco2  = df %>% pull(fco2)
   xco2 = df %>% pull(xco2)
@@ -476,7 +474,7 @@ data_set_cor <- data_set_nest %>%
     cor_sif = map(data, get_corr_sif),
   ) %>% 
   select(id,x,y,cor_xco2,cor_sif) %>% 
-  unnest() %>% 
+  unnest(cols = c(cor_xco2, cor_sif)) %>%
   drop_na()
 ```
 
@@ -683,242 +681,59 @@ cor_xco2 <- ko_cor_silv_xco2 |> as_tibble() |> pull(var1.pred)
 cor.test(cor_sif,cor_xco2)
 ```
 
+
+
+
 # Machine Learning
 
-### Aprendizado de Máquina - Modelo geral
-
 ```{r}
-data_set_temporal <- data_set |> 
-  select(cultura, fco2:arg,tmed:inso,xco2,sif) |> 
-  filter(fco2 <= 12) |> 
+data_erradas <- data_set |> 
+  group_by(cultura, data) |> 
+  summarize(
+    n=n(),
+    .groups = "drop"
+  ) 
+
+data_erradas_pasto <- data_erradas |> 
+  filter(cultura == "pasto",
+         n==1) |> pull(data)
+
+data_erradas_silvipastoril <- data_erradas |> 
+  filter(cultura == "silvipastoril",
+         n==1) |> pull(data)
+
+data_set_f <- data_set |>
+  filter(
+    !(cultura == "silvipastoril" & (data %in% data_erradas_silvipastoril)),
+    !(cultura == "pasto" & (data %in% data_erradas_pasto))
+  ) |> 
   ungroup() |> 
-  drop_na()
-```
+  mutate(
+    periodo = ifelse(data>"2018-06-16","I","II")
+    )
 
-```{r}
- visdat::vis_miss(data_set_temporal) 
-```
-## Definindo a Base de treino e teste
-
-```{r}
-data_set_ml <- data_set_temporal %>% #<-------
-  drop_na()
-fco2_initial_split <- initial_split(data_set_ml, prop = 0.70)
-```
-
-
-
-```{r}
-fco2_train <- training(fco2_initial_split)
-# fco2_test <- testing(fco2_initial_split)
-# visdat::vis_miss(fco2_test)
-fco2_train  %>% 
-  ggplot(aes(x=fco2, y=..density..))+
-  geom_histogram(bins = 30, color="black",  fill="lightgray")+
-  geom_density(alpha=.05,fill="red")+
+data_set_f |> 
+  group_by(cultura,periodo, data) |> 
+  summarize(
+    fco2=sum(fco2,na.rm=TRUE),
+    .groups = "drop"
+  ) |>  
+  ggplot(aes(x=data, y=fco2, color = cultura)) + 
+  geom_line() +
+  geom_point() +
+  # facet_wrap(~cultura) + 
   theme_bw() +
-  labs(x="fco2 - treino", y = "Densidade")
+  theme(legend.position = "top")+
+  scale_color_manual(values = c("black","red"))
 ```
 
+
+### Aprendizado de Máquina - Modelo Silvipastoril - I
 
 ```{r}
-fco2_testing <- testing(fco2_initial_split)
-fco2_testing  %>% 
-  ggplot(aes(x=fco2, y=..density..))+
-  geom_histogram(bins = 30, color="black",  fill="lightgray")+
-  geom_density(alpha=.05,fill="blue")+
-  theme_bw() +
-  labs(x="fco2 - teste", y = "Densidade")
-```
-
-```{r}
-fco2_train   %>%    select(-c(data,cultura)) %>% 
-  mutate(range_t = tmax-tmin) %>% 
-  select(-c(tmax,tmin,umax,umin,dir_vel)) %>%   
-  select(where(is.numeric)) %>%
-  drop_na() %>% 
-  cor()  %>%  
-  corrplot::corrplot(method = "color",
-         outline = T,,
-         addgrid.col = "darkgray",cl.pos = "r", tl.col = "black",
-         tl.cex = 1, cl.cex = 1, type = "upper", bg="azure2",
-         diag = FALSE,
-         addCoef.col = "black",
-         cl.ratio = 0.2,
-         cl.length = 5,
-         number.cex = 0.3) 
-```
-
-## Preparando os dados
-
-```{r}
-fco2_recipe <- recipe(fco2 ~ ., 
-                      data = fco2_train %>% 
-            select(-data) 
-) %>%  
-  step_normalize(all_numeric_predictors())  %>% 
-  step_naomit() %>%  
-  step_novel(all_nominal_predictors()) %>% 
-  step_zv(all_predictors()) %>%
-  step_naomit(c(ts, us)) %>% 
-  step_impute_median(where(is.numeric)) # %>%  inputação da mediana nos numéricos
-  # step_poly(c(Us,Ts), degree = 2)  %>%  
-  # step_dummy(all_nominal_predictors()) 
-bake(prep(fco2_recipe), new_data = NULL)
-```
-## Reamostragem
-
-```{r}
-fco2_resamples <- vfold_cv(fco2_train, v = 5) 
-```
-
-## Random Forest
-
-```{r}
-fco2_rf_model <- rand_forest(
-  min_n = tune(),
-  mtry = tune(),
-  trees = tune()
-)   %>%  
-  set_mode("regression")  %>% 
-  set_engine("randomForest")
-```
-
-### Workflow
-
-
-```{r}
-fco2_rf_wf <- workflow()   %>%  
-  add_model(fco2_rf_model) %>%  
-  add_recipe(fco2_recipe)
-```
-
-### Tune
-```{r, results='hide'}
-grid_rf <- grid_regular(
-  min_n(range = c(2, 10)), ## tentar até 250
-  mtry(range = c(3, 10)), ## no máximo 30
-  trees(range = c(50, 1000)),
-  levels = c(5, 5, 5)
-)
-
-fco2_rf_tune_grid <- tune_grid(
- fco2_rf_wf,
-  resamples = fco2_resamples,
-  grid = grid_rf,
-  metrics = metric_set(rmse)
-)
-```
-
-```{r}
-autoplot(fco2_rf_tune_grid) + 
-  theme_bw()
-```
-```{r}
-collect_metrics(fco2_rf_tune_grid)
-fco2_rf_tune_grid %>%
-  show_best(metric = "rmse", n = 6)
-```
-
-
-### Desempenho modelo final
-
-
-```{r}
-fco2_rf_best_params <- select_best(fco2_rf_tune_grid, metric = "rmse")
-fco2_rf_wf <- fco2_rf_wf %>%
-  finalize_workflow(fco2_rf_best_params)
-fco2_rf_last_fit <- last_fit(fco2_rf_wf, fco2_initial_split)
-
-## Criando os preditos
-fco2_test_preds <- bind_rows(
-  collect_predictions(fco2_rf_last_fit)  %>%
-    mutate(modelo = "rf"))
-
-fco2_test <- testing(fco2_initial_split)
-
-fco2_test_preds %>%
-  ggplot(aes(x=.pred, y=fco2)) +
-  geom_point()+
-  theme_bw() +
-  geom_smooth(method = "lm") +
-  stat_regline_equation(ggplot2::aes(
-  label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~"))) +
-  geom_abline (slope=1, linetype = "dashed", color="Red")
-```
-
-
-
-          
-```{r}
-fco2_rf_last_fit_model <-fco2_rf_last_fit$.workflow[[1]]$fit$fit
-vip(fco2_rf_last_fit_model,
-    aesthetics = list(color = "black", fill = "orange")) +
-    theme(axis.text.y=element_text(size=rel(1.5)),
-          axis.text.x=element_text(size=rel(1.5)),
-          axis.title.x=element_text(size=rel(1.5))
-          ) +
-  theme_bw()
-```
-
-
-```{r}
-features <- rownames(fco2_rf_last_fit_model$fit$importance)
-importance_top_10 <- fco2_rf_last_fit_model$fit$importance |> 
-  as_tibble() |> 
-  add_column(feature = features) |> 
-  arrange(desc(IncNodePurity)) |> 
-  relocate(feature) |> 
-  slice(1:10)
-
-atr_fisicos <- features[c(14:17,19:21)]
-atr_quimicos <- features[c(4:13)]
-atr_dinamicos <- features[c(2,3,18)]
-atr_climaticos <- features[c(22:34)]
-atr_orbitais <- features[c(35:36)]
-
-importance_top_10 |> 
-  arrange(IncNodePurity) |> 
-  mutate(feature_type = case_when(
-    feature %in% atr_fisicos   ~ "físicos",
-    feature %in% atr_quimicos  ~ "químicos",
-    feature %in% atr_dinamicos ~ "dinâmicos",
-    feature %in% atr_climaticos ~ "climáticos",
-    feature %in% atr_orbitais  ~ "orbitais",
-    TRUE                        ~ "outro"
-  ),
-  feature = feature |> fct_reorder(IncNodePurity)) |> 
-  ggplot(aes(x=IncNodePurity, y=feature, fill = feature_type)) +
-  geom_col(color="black") +
-  theme_bw()+
-  labs(x = "Importância",y="",
-       fill="Grupo") +
-  theme(legend.position = "top") +
-  scale_fill_viridis_d()
-```
-
-```{r}
-da <- fco2_test_preds %>%
-  filter(fco2 > 0, .pred>0 )
-
-my_r <- cor(da$fco2,da$.pred)
-my_r2 <- my_r*my_r
-my_mse <- Metrics::mse(da$fco2,da$.pred)
-my_rmse <- Metrics::rmse(da$fco2,
-                         da$.pred)
-my_mae <- Metrics::mae(da$fco2,da$.pred)
-my_mape <- Metrics::mape(da$fco2,da$.pred)*100
-
-vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, MAPE=my_mape)
-print(data.frame(vector_of_metrics))
-```
-
-
-### Aprendizado de Máquina - Modelo Silvipastoril
-
-```{r}
-data_set_temporal <- data_set |> 
-  filter(cultura == "silvipastoril") |> 
+data_set_temporal <- data_set_f |> 
+  filter(cultura == "silvipastoril",
+         periodo == "I") |> 
   select(fco2:arg,tmed:inso,xco2,sif) |> 
   filter(fco2 <= 12) |> 
   ungroup() |> 
@@ -963,7 +778,7 @@ fco2_testing  %>%
 ```
 
 ```{r}
-fco2_train   %>%    select(-c(data,cultura)) %>% 
+fco2_train   %>%   
   mutate(range_t = tmax-tmin) %>% 
   select(-c(tmax,tmin,umax,umin,dir_vel)) %>%   
   select(where(is.numeric)) %>%
@@ -980,14 +795,13 @@ fco2_train   %>%    select(-c(data,cultura)) %>%
          number.cex = 0.3) 
 ```
 
+
+
 ## Preparando os dados
 
 ```{r}
-fco2_train$cultura |> table()
-
 fco2_recipe <- recipe(fco2 ~ ., 
-                      data = fco2_train %>% 
-            select(-c(data,cultura,chuva) )
+                      data = fco2_train 
 ) %>%  
   step_normalize(all_numeric_predictors())  %>% 
   step_naomit() %>%  
@@ -998,6 +812,11 @@ fco2_recipe <- recipe(fco2 ~ .,
   # step_poly(c(Us,Ts), degree = 2)  %>%  
   # step_dummy(all_nominal_predictors()) 
 bake(prep(fco2_recipe), new_data = NULL)
+```
+
+### Reamostragem
+```{r}
+fco2_resamples <- vfold_cv(fco2_train, v = 5)
 ```
 ## Random Forest
 
@@ -1026,7 +845,7 @@ grid_rf <- grid_regular(
   min_n(range = c(2, 10)),
   mtry(range = c(3, 10)), 
   trees(range = c(50, 1000)),
-  levels = c(5, 5, 5)
+  levels = c(2, 2, 2)
 )
 
 fco2_rf_tune_grid <- tune_grid(
@@ -1096,6 +915,12 @@ importance_top_10 <- fco2_rf_last_fit_model$fit$importance |>
   relocate(feature) |> 
   slice(1:10)
 
+atr_fisicos <- features[c(14:17,19:21)]
+atr_quimicos <- features[c(4:13)]
+atr_dinamicos <- features[c(2,3,18)]
+atr_climaticos <- features[c(22:34)]
+atr_orbitais <- features[c(35:36)]
+
 importance_top_10 |> 
   arrange(IncNodePurity) |> 
   mutate(feature_type = case_when(
@@ -1132,12 +957,12 @@ vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, M
 print(data.frame(vector_of_metrics))
 ```
 
-
-### Aprendizado de Máquina - Modelo pasto
+### Aprendizado de Máquina - Modelo Silvipastoril - II
 
 ```{r}
-data_set_temporal <- data_set |> 
-  filter(cultura == "pasto") |> 
+data_set_temporal <- data_set_f |> 
+  filter(cultura == "silvipastoril",
+         periodo == "II") |> 
   select(fco2:arg,tmed:inso,xco2,sif) |> 
   filter(fco2 <= 12) |> 
   ungroup() |> 
@@ -1145,7 +970,7 @@ data_set_temporal <- data_set |>
 ```
 
 ```{r}
-visdat::vis_miss(data_set_temporal) 
+ visdat::vis_miss(data_set_temporal) 
 ```
 ## Definindo a Base de treino e teste
 
@@ -1182,7 +1007,7 @@ fco2_testing  %>%
 ```
 
 ```{r}
-fco2_train   %>%    select(-c(data,cultura)) %>% 
+fco2_train   %>%   
   mutate(range_t = tmax-tmin) %>% 
   select(-c(tmax,tmin,umax,umin,dir_vel)) %>%   
   select(where(is.numeric)) %>%
@@ -1203,8 +1028,7 @@ fco2_train   %>%    select(-c(data,cultura)) %>%
 
 ```{r}
 fco2_recipe <- recipe(fco2 ~ ., 
-                      data = fco2_train %>% 
-            select(-c(data,cultura,chuva)) 
+                      data = fco2_train 
 ) %>%  
   step_normalize(all_numeric_predictors())  %>% 
   step_naomit() %>%  
@@ -1217,6 +1041,10 @@ fco2_recipe <- recipe(fco2 ~ .,
 bake(prep(fco2_recipe), new_data = NULL)
 ```
 
+### Reamostragem
+```{r}
+fco2_resamples <- vfold_cv(fco2_train, v = 5)
+```
 ## Random Forest
 
 ```{r}
@@ -1241,10 +1069,10 @@ fco2_rf_wf <- workflow()   %>%
 ### Tune
 ```{r, results='hide'}
 grid_rf <- grid_regular(
-  min_n(range = c(2, 20)),
-  mtry(range = c(3, 25)), 
+  min_n(range = c(2, 10)),
+  mtry(range = c(3, 10)), 
   trees(range = c(50, 1000)),
-  levels = c(5, 5, 5)
+  levels = c(2, 2, 2)
 )
 
 fco2_rf_tune_grid <- tune_grid(
@@ -1256,8 +1084,10 @@ fco2_rf_tune_grid <- tune_grid(
 ```
 
 ```{r}
-autoplot(fco2_rf_tune_grid)
+autoplot(fco2_rf_tune_grid) +
+  theme_bw()
 ```
+
 ```{r}
 collect_metrics(fco2_rf_tune_grid)
 fco2_rf_tune_grid %>%
@@ -1292,8 +1122,6 @@ fco2_test_preds %>%
 ```
 
 
-
-          
 ```{r}
 fco2_rf_last_fit_model <-fco2_rf_last_fit$.workflow[[1]]$fit$fit
 vip(fco2_rf_last_fit_model,
@@ -1304,6 +1132,7 @@ vip(fco2_rf_last_fit_model,
           ) +
   theme_bw()
 ```
+
 ```{r}
 features <- rownames(fco2_rf_last_fit_model$fit$importance)
 importance_top_10 <- fco2_rf_last_fit_model$fit$importance |> 
@@ -1312,6 +1141,466 @@ importance_top_10 <- fco2_rf_last_fit_model$fit$importance |>
   arrange(desc(IncNodePurity)) |> 
   relocate(feature) |> 
   slice(1:10)
+
+atr_fisicos <- features[c(14:17,19:21)]
+atr_quimicos <- features[c(4:13)]
+atr_dinamicos <- features[c(2,3,18)]
+atr_climaticos <- features[c(22:34)]
+atr_orbitais <- features[c(35:36)]
+
+importance_top_10 |> 
+  arrange(IncNodePurity) |> 
+  mutate(feature_type = case_when(
+    feature %in% atr_fisicos   ~ "físicos",
+    feature %in% atr_quimicos  ~ "químicos",
+    feature %in% atr_dinamicos ~ "dinâmicos",
+    feature %in% atr_climaticos ~ "climáticos",
+    feature %in% atr_orbitais  ~ "orbitais",
+    TRUE                        ~ "outro"
+  ),
+  feature = feature |> fct_reorder(IncNodePurity)) |> 
+  ggplot(aes(x=IncNodePurity, y=feature, fill = feature_type)) +
+  geom_col(color="black") +
+  theme_bw()+
+  labs(x = "Importância",y="",
+       fill="Grupo") +
+  theme(legend.position = "top") +
+  scale_fill_viridis_d()
+```
+
+```{r}
+da <- fco2_test_preds %>%
+  filter(fco2 > 0, .pred>0 )
+
+my_r <- cor(da$fco2,da$.pred)
+my_r2 <- my_r*my_r
+my_mse <- Metrics::mse(da$fco2,da$.pred)
+my_rmse <- Metrics::rmse(da$fco2,
+                         da$.pred)
+my_mae <- Metrics::mae(da$fco2,da$.pred)
+my_mape <- Metrics::mape(da$fco2,da$.pred)*100
+
+vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, MAPE=my_mape)
+print(data.frame(vector_of_metrics))
+```
+
+### Aprendizado de Máquina - Modelo Pasto - I
+
+```{r}
+data_set_temporal <- data_set_f |> 
+  filter(cultura == "pasto",
+         periodo == "I") |> 
+  select(fco2:arg,tmed:inso,xco2,sif) |> 
+  filter(fco2 <= 12) |> 
+  ungroup() |> 
+  drop_na()
+```
+
+```{r}
+ visdat::vis_miss(data_set_temporal) 
+```
+## Definindo a Base de treino e teste
+
+
+```{r}
+data_set_ml <- data_set_temporal %>% #<-------
+  drop_na()
+fco2_initial_split <- initial_split(data_set_ml, prop = 0.70)
+```
+
+
+
+```{r}
+fco2_train <- training(fco2_initial_split)
+# fco2_test <- testing(fco2_initial_split)
+# visdat::vis_miss(fco2_test)
+fco2_train  %>% 
+  ggplot(aes(x=fco2, y=..density..))+
+  geom_histogram(bins = 30, color="black",  fill="lightgray")+
+  geom_density(alpha=.05,fill="red")+
+  theme_bw() +
+  labs(x="fco2 - treino", y = "Densidade")
+```
+
+
+```{r}
+fco2_testing <- testing(fco2_initial_split)
+fco2_testing  %>% 
+  ggplot(aes(x=fco2, y=..density..))+
+  geom_histogram(bins = 30, color="black",  fill="lightgray")+
+  geom_density(alpha=.05,fill="blue")+
+  theme_bw() +
+  labs(x="fco2 - teste", y = "Densidade")
+```
+
+```{r}
+fco2_train   %>%   
+  mutate(range_t = tmax-tmin) %>% 
+  select(-c(tmax,tmin,umax,umin,dir_vel)) %>%   
+  select(where(is.numeric)) %>%
+  drop_na() %>% 
+  cor()  %>%  
+  corrplot::corrplot(method = "color",
+         outline = T,,
+         addgrid.col = "darkgray",cl.pos = "r", tl.col = "black",
+         tl.cex = 1, cl.cex = 1, type = "upper", bg="azure2",
+         diag = FALSE,
+         addCoef.col = "black",
+         cl.ratio = 0.2,
+         cl.length = 5,
+         number.cex = 0.3) 
+```
+
+## Preparando os dados
+
+```{r}
+fco2_recipe <- recipe(fco2 ~ ., 
+                      data = fco2_train 
+) %>%  
+  step_normalize(all_numeric_predictors())  %>% 
+  step_naomit() %>%  
+  step_novel(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>%
+  step_naomit(c(ts, us)) %>% 
+  step_impute_median(where(is.numeric)) # %>%  inputação da mediana nos numéricos
+  # step_poly(c(Us,Ts), degree = 2)  %>%  
+  # step_dummy(all_nominal_predictors()) 
+bake(prep(fco2_recipe), new_data = NULL)
+```
+
+### Reamostragem
+```{r}
+fco2_resamples <- vfold_cv(fco2_train, v = 5)
+```
+## Random Forest
+
+```{r}
+fco2_rf_model <- rand_forest(
+  min_n = tune(),
+  mtry = tune(),
+  trees = tune()
+)   %>%  
+  set_mode("regression")  %>% 
+  set_engine("randomForest")
+```
+
+### Workflow
+
+
+```{r}
+fco2_rf_wf <- workflow()   %>%  
+  add_model(fco2_rf_model) %>%  
+  add_recipe(fco2_recipe)
+```
+
+### Tune
+```{r, results='hide'}
+grid_rf <- grid_regular(
+  min_n(range = c(2, 10)),
+  mtry(range = c(3, 10)), 
+  trees(range = c(50, 1000)),
+  levels = c(2, 2, 2)
+)
+
+fco2_rf_tune_grid <- tune_grid(
+ fco2_rf_wf,
+  resamples = fco2_resamples,
+  grid = grid_rf,
+  metrics = metric_set(rmse)
+)
+```
+
+```{r}
+autoplot(fco2_rf_tune_grid) +
+  theme_bw()
+```
+
+```{r}
+collect_metrics(fco2_rf_tune_grid)
+fco2_rf_tune_grid %>%
+  show_best(metric = "rmse", n = 6)
+```
+
+
+### Desempenho modelo final
+
+
+```{r}
+fco2_rf_best_params <- select_best(fco2_rf_tune_grid, metric = "rmse")
+fco2_rf_wf <- fco2_rf_wf %>%
+  finalize_workflow(fco2_rf_best_params)
+fco2_rf_last_fit <- last_fit(fco2_rf_wf, fco2_initial_split)
+
+## Criando os preditos
+fco2_test_preds <- bind_rows(
+  collect_predictions(fco2_rf_last_fit)  %>%
+    mutate(modelo = "rf"))
+
+fco2_test <- testing(fco2_initial_split)
+
+fco2_test_preds %>%
+  ggplot(aes(x=.pred, y=fco2)) +
+  geom_point()+
+  theme_bw() +
+  geom_smooth(method = "lm") +
+  stat_regline_equation(ggplot2::aes(
+  label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~"))) +
+  geom_abline (slope=1, linetype = "dashed", color="Red")
+```
+
+
+```{r}
+fco2_rf_last_fit_model <-fco2_rf_last_fit$.workflow[[1]]$fit$fit
+vip(fco2_rf_last_fit_model,
+    aesthetics = list(color = "black", fill = "orange")) +
+    theme(axis.text.y=element_text(size=rel(1.5)),
+          axis.text.x=element_text(size=rel(1.5)),
+          axis.title.x=element_text(size=rel(1.5))
+          ) +
+  theme_bw()
+```
+
+```{r}
+features <- rownames(fco2_rf_last_fit_model$fit$importance)
+importance_top_10 <- fco2_rf_last_fit_model$fit$importance |> 
+  as_tibble() |> 
+  add_column(feature = features) |> 
+  arrange(desc(IncNodePurity)) |> 
+  relocate(feature) |> 
+  slice(1:10)
+
+atr_fisicos <- features[c(14:17,19:21)]
+atr_quimicos <- features[c(4:13)]
+atr_dinamicos <- features[c(2,3,18)]
+atr_climaticos <- features[c(22:34)]
+atr_orbitais <- features[c(35:36)]
+
+importance_top_10 |> 
+  arrange(IncNodePurity) |> 
+  mutate(feature_type = case_when(
+    feature %in% atr_fisicos   ~ "físicos",
+    feature %in% atr_quimicos  ~ "químicos",
+    feature %in% atr_dinamicos ~ "dinâmicos",
+    feature %in% atr_climaticos ~ "climáticos",
+    feature %in% atr_orbitais  ~ "orbitais",
+    TRUE                        ~ "outro"
+  ),
+  feature = feature |> fct_reorder(IncNodePurity)) |> 
+  ggplot(aes(x=IncNodePurity, y=feature, fill = feature_type)) +
+  geom_col(color="black") +
+  theme_bw()+
+  labs(x = "Importância",y="",
+       fill="Grupo") +
+  theme(legend.position = "top") +
+  scale_fill_viridis_d()
+```
+
+```{r}
+da <- fco2_test_preds %>%
+  filter(fco2 > 0, .pred>0 )
+
+my_r <- cor(da$fco2,da$.pred)
+my_r2 <- my_r*my_r
+my_mse <- Metrics::mse(da$fco2,da$.pred)
+my_rmse <- Metrics::rmse(da$fco2,
+                         da$.pred)
+my_mae <- Metrics::mae(da$fco2,da$.pred)
+my_mape <- Metrics::mape(da$fco2,da$.pred)*100
+
+vector_of_metrics <- c(r=my_r, R2=my_r2, MSE=my_mse, RMSE=my_rmse, MAE=my_mae, MAPE=my_mape)
+print(data.frame(vector_of_metrics))
+```
+
+### Aprendizado de Máquina - Modelo Pasto - II
+
+```{r}
+data_set_temporal <- data_set_f |> 
+  filter(cultura == "pasto",
+         periodo == "II") |> 
+  select(fco2:arg,tmed:inso,xco2,sif) |> 
+  filter(fco2 <= 12) |> 
+  ungroup() |> 
+  drop_na()
+```
+
+```{r}
+ visdat::vis_miss(data_set_temporal) 
+```
+## Definindo a Base de treino e teste
+
+
+```{r}
+data_set_ml <- data_set_temporal %>% #<-------
+  drop_na()
+fco2_initial_split <- initial_split(data_set_ml, prop = 0.70)
+```
+
+
+
+```{r}
+fco2_train <- training(fco2_initial_split)
+# fco2_test <- testing(fco2_initial_split)
+# visdat::vis_miss(fco2_test)
+fco2_train  %>% 
+  ggplot(aes(x=fco2, y=..density..))+
+  geom_histogram(bins = 30, color="black",  fill="lightgray")+
+  geom_density(alpha=.05,fill="red")+
+  theme_bw() +
+  labs(x="fco2 - treino", y = "Densidade")
+```
+
+
+```{r}
+fco2_testing <- testing(fco2_initial_split)
+fco2_testing  %>% 
+  ggplot(aes(x=fco2, y=..density..))+
+  geom_histogram(bins = 30, color="black",  fill="lightgray")+
+  geom_density(alpha=.05,fill="blue")+
+  theme_bw() +
+  labs(x="fco2 - teste", y = "Densidade")
+```
+
+```{r}
+fco2_train   %>%   
+  mutate(range_t = tmax-tmin) %>% 
+  select(-c(tmax,tmin,umax,umin,dir_vel)) %>%   
+  select(where(is.numeric)) %>%
+  drop_na() %>% 
+  cor()  %>%  
+  corrplot::corrplot(method = "color",
+         outline = T,,
+         addgrid.col = "darkgray",cl.pos = "r", tl.col = "black",
+         tl.cex = 1, cl.cex = 1, type = "upper", bg="azure2",
+         diag = FALSE,
+         addCoef.col = "black",
+         cl.ratio = 0.2,
+         cl.length = 5,
+         number.cex = 0.3) 
+```
+
+## Preparando os dados
+
+```{r}
+fco2_recipe <- recipe(fco2 ~ ., 
+                      data = fco2_train 
+) %>%  
+  step_normalize(all_numeric_predictors())  %>% 
+  step_naomit() %>%  
+  step_novel(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>%
+  step_naomit(c(ts, us)) %>% 
+  step_impute_median(where(is.numeric)) # %>%  inputação da mediana nos numéricos
+  # step_poly(c(Us,Ts), degree = 2)  %>%  
+  # step_dummy(all_nominal_predictors()) 
+bake(prep(fco2_recipe), new_data = NULL)
+```
+
+### Reamostragem
+```{r}
+fco2_resamples <- vfold_cv(fco2_train, v = 5)
+```
+## Random Forest
+
+```{r}
+fco2_rf_model <- rand_forest(
+  min_n = tune(),
+  mtry = tune(),
+  trees = tune()
+)   %>%  
+  set_mode("regression")  %>% 
+  set_engine("randomForest")
+```
+
+### Workflow
+
+
+```{r}
+fco2_rf_wf <- workflow()   %>%  
+  add_model(fco2_rf_model) %>%  
+  add_recipe(fco2_recipe)
+```
+
+### Tune
+```{r, results='hide'}
+grid_rf <- grid_regular(
+  min_n(range = c(2, 10)),
+  mtry(range = c(3, 10)), 
+  trees(range = c(50, 1000)),
+  levels = c(2, 2, 2)
+)
+
+fco2_rf_tune_grid <- tune_grid(
+ fco2_rf_wf,
+  resamples = fco2_resamples,
+  grid = grid_rf,
+  metrics = metric_set(rmse)
+)
+```
+
+```{r}
+autoplot(fco2_rf_tune_grid) +
+  theme_bw()
+```
+
+```{r}
+collect_metrics(fco2_rf_tune_grid)
+fco2_rf_tune_grid %>%
+  show_best(metric = "rmse", n = 6)
+```
+
+
+### Desempenho modelo final
+
+
+```{r}
+fco2_rf_best_params <- select_best(fco2_rf_tune_grid, metric = "rmse")
+fco2_rf_wf <- fco2_rf_wf %>%
+  finalize_workflow(fco2_rf_best_params)
+fco2_rf_last_fit <- last_fit(fco2_rf_wf, fco2_initial_split)
+
+## Criando os preditos
+fco2_test_preds <- bind_rows(
+  collect_predictions(fco2_rf_last_fit)  %>%
+    mutate(modelo = "rf"))
+
+fco2_test <- testing(fco2_initial_split)
+
+fco2_test_preds %>%
+  ggplot(aes(x=.pred, y=fco2)) +
+  geom_point()+
+  theme_bw() +
+  geom_smooth(method = "lm") +
+  stat_regline_equation(ggplot2::aes(
+  label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~"))) +
+  geom_abline (slope=1, linetype = "dashed", color="Red")
+```
+
+
+```{r}
+fco2_rf_last_fit_model <-fco2_rf_last_fit$.workflow[[1]]$fit$fit
+vip(fco2_rf_last_fit_model,
+    aesthetics = list(color = "black", fill = "orange")) +
+    theme(axis.text.y=element_text(size=rel(1.5)),
+          axis.text.x=element_text(size=rel(1.5)),
+          axis.title.x=element_text(size=rel(1.5))
+          ) +
+  theme_bw()
+```
+
+```{r}
+features <- rownames(fco2_rf_last_fit_model$fit$importance)
+importance_top_10 <- fco2_rf_last_fit_model$fit$importance |> 
+  as_tibble() |> 
+  add_column(feature = features) |> 
+  arrange(desc(IncNodePurity)) |> 
+  relocate(feature) |> 
+  slice(1:10)
+
+atr_fisicos <- features[c(14:17,19:21)]
+atr_quimicos <- features[c(4:13)]
+atr_dinamicos <- features[c(2,3,18)]
+atr_climaticos <- features[c(22:34)]
+atr_orbitais <- features[c(35:36)]
 
 importance_top_10 |> 
   arrange(IncNodePurity) |> 
